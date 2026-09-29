@@ -46,4 +46,3 @@ Exit the virtual environment:
 deactivate
 ```
 
-MongoDB is not required for the current endpoints; they use in-memory state data.
