@@ -3,6 +3,15 @@ const { pool } = require("../db");
 
 const router = express.Router();
 
+const EDITABLE_FIELDS = [
+    "title",
+    "description",
+    "price",
+    "category",
+    "item_condition",
+    "status",
+];
+
 // GET /api/listings - browse/search listings
 router.get("/", async (req, res, next) => {
     try {
@@ -57,6 +66,51 @@ router.post("/", async (req, res, next) => {
             [seller_id, title, description || null, price, category || null, item_condition || null]
         );
         res.status(201).json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// PATCH /api/listings/:id - edit a listing
+router.patch("/:id", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updates = Object.keys(req.body).filter((key) => EDITABLE_FIELDS.includes(key));
+
+        if (updates.length === 0) {
+            return res.status(400).json({ error: "no editable fields provided" });
+        }
+
+        const setClauses = updates.map((field, i) => `${field} = $${i + 1}`);
+        const values = updates.map((field) => req.body[field]);
+        values.push(id);
+
+        const result = await pool.query(
+            `UPDATE listings SET ${setClauses.join(", ")}, updated_at = NOW()
+             WHERE id = $${values.length}
+             RETURNING *`,
+            values
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "listing not found" });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// DELETE /api/listings/:id - delete a listing
+router.delete("/:id", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(`DELETE FROM listings WHERE id = $1 RETURNING id`, [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "listing not found" });
+        }
+        res.status(204).send();
     } catch (err) {
         next(err);
     }
