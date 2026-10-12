@@ -77,4 +77,38 @@ router.get("/", async (req, res, next) => {
     }
 });
 
+// PATCH /api/purchase-requests/:id - accept, reject, or cancel a pending request
+router.patch("/:id", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!["accepted", "rejected", "cancelled"].includes(status)) {
+            return res.status(400).json({ error: "status must be accepted, rejected, or cancelled" });
+        }
+
+        const result = await pool.query(
+            `UPDATE purchase_requests SET status = $1, updated_at = NOW()
+             WHERE id = $2 AND status = 'pending'
+             RETURNING *`,
+            [status, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "pending request not found" });
+        }
+
+        // Accepting a request reserves the listing so nobody else can request it
+        if (status === "accepted") {
+            await pool.query(
+                `UPDATE listings SET status = 'pending', updated_at = NOW() WHERE id = $1`,
+                [result.rows[0].listing_id]
+            );
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+});
+
 module.exports = router;
