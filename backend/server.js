@@ -1,5 +1,6 @@
 const express = require("express");
 const listingsRouter = require("./routes/listings");
+const purchaseRequestsRouter = require("./routes/purchaseRequests");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,6 +12,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/listings", listingsRouter);
+app.use("/api/purchase-requests", purchaseRequestsRouter);
 
 app.use((err, req, res, next) => {
     console.error(err);
