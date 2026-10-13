@@ -8,6 +8,81 @@
   margin-top: 8px;
 }
 
+.toggle-form-button {
+  margin-top: 16px;
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.toggle-form-button:hover {
+  box-shadow: var(--shadow);
+}
+
+.create-listing-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+  margin: 0 auto 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.create-listing-form h2 {
+  margin: 0 0 4px;
+}
+
+.create-listing-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 15px;
+  color: var(--text-h);
+  flex: 1;
+}
+
+.create-listing-form input,
+.create-listing-form select,
+.create-listing-form textarea {
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.create-listing-form .form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.create-listing-form button {
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.create-listing-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

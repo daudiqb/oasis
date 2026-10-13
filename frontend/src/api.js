@@ -23,3 +23,11 @@ export function getListings(filters = {}) {
   const query = params.toString();
   return fetch(`${API_BASE}/listings${query ? `?${query}` : ""}`).then(handleResponse);
 }
+
+export function createListing(data) {
+  return fetch(`${API_BASE}/listings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then(handleResponse);
+}

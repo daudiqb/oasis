@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import { getListings } from './api'
+import CreateListingForm from './CreateListingForm'
 
 const CATEGORIES = ['books', 'electronics', 'furniture', 'clothing', 'home', 'other']
 const STATUSES = ['available', 'pending', 'sold']
@@ -33,6 +34,7 @@ function App() {
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showForm, setShowForm] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -60,7 +62,23 @@ function App() {
       <header className="app-header">
         <h1>Campus Marketplace</h1>
         <p>Browse items other students are selling</p>
+        <button
+          type="button"
+          className="toggle-form-button"
+          onClick={() => setShowForm((prev) => !prev)}
+        >
+          {showForm ? 'Cancel' : '+ List an item'}
+        </button>
       </header>
+
+      {showForm && (
+        <CreateListingForm
+          onCreated={(listing) => {
+            setListings((prev) => [listing, ...prev])
+            setShowForm(false)
+          }}
+        />
+      )}
 
       <section className="filters">
         <input
