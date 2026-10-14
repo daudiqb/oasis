@@ -58,12 +58,13 @@ def exists(state_code: str):
 
 def check_valid_state(state_code: str, population: int, capital: str,
                       area_sq_miles: float, name: str):
-    if exists(state_code):
-        raise ValueError(f"State code {state_code} already exists.")
     if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
         raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
-    if not isinstance(population, int) or population < 0:
+    if (not isinstance(population, int) or isinstance(population, bool)
+            or population < 0):
         raise ValueError("Population must be a non-negative integer.")
+    if exists(state_code):
+        raise ValueError(f"State code {state_code} already exists.")
     return True
 
 
