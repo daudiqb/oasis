@@ -11,6 +11,7 @@ from flask_cors import CORS
 import werkzeug.exceptions as wz
 
 import states.query as sqry
+import cities.query as cqry
 
 app = Flask(__name__)
 CORS(app)
@@ -22,6 +23,8 @@ HELLO_EP = '/hello'
 HELLO_RESP = 'hello'
 STATES_EP = '/states'
 STATES_RESP = 'States:'
+CITIES_EP = '/cities'
+CITIES_RESP = 'Cities'
 MESSAGE = 'Message'
 
 
@@ -67,3 +70,20 @@ class States(Resource):
         if states is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {STATES_RESP: states}
+
+
+@api.route(CITIES_EP)
+class Cities(Resource):
+    """
+    Endpoint for reading all cities.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self):
+        """
+        Return all cities in the database.
+        """
+        cities = cqry.read()
+        if cities is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {CITIES_RESP: cities}
