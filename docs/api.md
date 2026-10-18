@@ -1,12 +1,16 @@
-# API Routes
+# API Endpoints
 
-## Listings
-- GET /api/listings - browse/search listings
-- POST /api/listings - create a listing
-- PATCH /api/listings/:id - edit a listing
-- DELETE /api/listings/:id - delete a listing
+All endpoints are served by the Flask server in `server/endpoints.py`.
+Full Swagger docs are at http://127.0.0.1:8000/ while the server is running.
 
-## Purchase requests
-- POST /api/purchase-requests - send a request to buy
-- GET /api/purchase-requests - view incoming/outgoing requests
-- PATCH /api/purchase-requests/:id - accept, reject, or cancel a request
+| Method | Endpoint   | Description |
+|--------|------------|-------------|
+| GET    | /hello     | Check that the server is running |
+| GET    | /endpoints | List all endpoints |
+| GET    | /states    | List all states |
+| GET    | /cities    | List all cities |
+
+## Planned
+- Cities: get one, create, update, delete
+- Listings: CRUD, filter by city or state, search near a location
+- Purchase requests: create, view, accept/reject/cancel

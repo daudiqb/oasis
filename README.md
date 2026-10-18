@@ -1,13 +1,26 @@
 # oasis
 
-Campus marketplace where students can list items, browse listings, and request to buy them.
+A geographic database API for US states and cities, with a marketplace where each listing belongs to a city.
 
-## Stack
-React frontend, Node.js/Express backend, PostgreSQL database. The repo also still contains the Flask template server (`server/`).
+## Tech stack
+- Python 3.9+
+- API: Flask and flask-restx (Swagger docs)
+- Database: MongoDB
+- Testing: pytest
+- Lint: flake8
+- Build: make
+- CI/CD: GitHub Actions
+- Deployment: PythonAnywhere
+- Frontend: React (in `frontend/`)
 
-## Startup
+## Project layout
+- `server/` Flask app and endpoints
+- `states/` state data and queries
+- `cities/` city data and queries
+- `data/` MongoDB connection
+- `frontend/` React app
 
-### Flask server (template)
+### Running the API (Flask)
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -18,14 +31,7 @@ make all_tests
 ```
 Open http://127.0.0.1:8000/ for the API documentation. Stop the server with Ctrl+C.
 
-### Node backend
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-### React frontend
+### Running the frontend
 ```bash
 cd frontend
 npm install
