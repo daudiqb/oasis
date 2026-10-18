@@ -19,6 +19,7 @@ all_tests: FORCE
 	# cd $(DB_DIR); make tests
 	cd cities; make tests
 	cd states; make tests
+	cd purchase_requests; make tests
 
 dev_env: FORCE
 	pip install -r $(REQ_DIR)/requirements-dev.txt
