@@ -8,6 +8,20 @@ STATE_CODE = 'state_code'
 LATITUDE = 'latitude'
 LONGITUDE = 'longitude'
 
+STATE_CODE_LEN = 2
+MIN_LATITUDE = -90
+MAX_LATITUDE = 90
+MIN_LONGITUDE = -180
+MAX_LONGITUDE = 180
+
+TEST_CITY = {
+    NAME: 'Test City',
+    STATE_CODE: 'NY',
+    LATITUDE: 40.0,
+    LONGITUDE: -74.0,
+}
+
+
 CITY_TEST_DATA = [
     {NAME: 'Brooklyn', STATE_CODE: 'NY',
      LATITUDE: 40.6782, LONGITUDE: -73.9442},
@@ -26,3 +40,22 @@ def read():
     if not is_db_up():
         return None
     return CITY_TEST_DATA
+
+
+def check_valid_city(name: str, state_code: str,
+                     latitude: float, longitude: float):
+    """
+    Raise ValueError if any city field is invalid.
+    Returns True if the city is valid.
+    """
+    if not isinstance(name, str) or not name:
+        raise ValueError('City name must be a non-empty string.')
+    if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
+        raise ValueError(f'State code must be {STATE_CODE_LEN} letters.')
+    if not isinstance(latitude, (int, float)) \
+            or not MIN_LATITUDE <= latitude <= MAX_LATITUDE:
+        raise ValueError('Latitude must be between -90 and 90.')
+    if not isinstance(longitude, (int, float)) \
+            or not MIN_LONGITUDE <= longitude <= MAX_LONGITUDE:
+        raise ValueError('Longitude must be between -180 and 180.')
+    return True
