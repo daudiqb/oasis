@@ -1,4 +1,5 @@
 from http.client import (
+    CREATED,
     BAD_REQUEST,
     FORBIDDEN,
     NOT_ACCEPTABLE,
@@ -47,4 +48,77 @@ def test_get_cities():
 @patch('cities.query.is_db_up', return_value=False, autospec=True)
 def test_get_cities_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.CITIES_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+FAKE_PR = {'request_id': 'abc', 'listing_id': 'L1', 'buyer_id': 'b1',
+           'seller_id': 's1', 'message': '', 'status': 'pending'}
+
+
+@patch('server.endpoints.prqry.read', return_value=[FAKE_PR], autospec=True)
+def test_get_purchase_requests(mock_read):
+    resp = TEST_CLIENT.get(f'{ep.PURCHASE_REQUESTS_EP}?buyer_id=b1')
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.PURCHASE_REQUESTS_RESP] == [FAKE_PR]
+    mock_read.assert_called_once_with(buyer_id='b1', seller_id=None,
+                                      status=None)
+
+
+@patch('server.endpoints.prqry.read', return_value=None, autospec=True)
+def test_get_purchase_requests_db_unavailable(mock_read):
+    resp = TEST_CLIENT.get(ep.PURCHASE_REQUESTS_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('server.endpoints.prqry.create', return_value=FAKE_PR, autospec=True)
+def test_post_purchase_request(mock_create):
+    body = {'listing_id': 'L1', 'buyer_id': 'b1', 'seller_id': 's1'}
+    resp = TEST_CLIENT.post(ep.PURCHASE_REQUESTS_EP, json=body)
+    assert resp.status_code == CREATED
+    assert resp.get_json()[ep.PURCHASE_REQUEST_RESP] == FAKE_PR
+
+
+@patch('server.endpoints.prqry.create', side_effect=ValueError('bad'),
+       autospec=True)
+def test_post_purchase_request_invalid(mock_create):
+    resp = TEST_CLIENT.post(ep.PURCHASE_REQUESTS_EP, json={})
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.prqry.create', return_value=None, autospec=True)
+def test_post_purchase_request_db_unavailable(mock_create):
+    resp = TEST_CLIENT.post(ep.PURCHASE_REQUESTS_EP, json={})
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('server.endpoints.prqry.update_status',
+       return_value={**FAKE_PR, 'status': 'accepted'}, autospec=True)
+@patch('server.endpoints.prqry.exists', return_value=True, autospec=True)
+def test_patch_purchase_request(mock_exists, mock_update):
+    resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
+                             json={'status': 'accepted'})
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.PURCHASE_REQUEST_RESP]['status'] == 'accepted'
+
+
+@patch('server.endpoints.prqry.exists', return_value=False, autospec=True)
+def test_patch_purchase_request_not_found(mock_exists):
+    resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/nope',
+                             json={'status': 'accepted'})
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('server.endpoints.prqry.update_status', side_effect=ValueError('bad'),
+       autospec=True)
+@patch('server.endpoints.prqry.exists', return_value=True, autospec=True)
+def test_patch_purchase_request_invalid(mock_exists, mock_update):
+    resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
+                             json={'status': 'banana'})
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.prqry.exists', return_value=None, autospec=True)
+def test_patch_purchase_request_db_unavailable(mock_exists):
+    resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
+                             json={'status': 'accepted'})
     assert resp.status_code == SERVICE_UNAVAILABLE
