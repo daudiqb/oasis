@@ -59,3 +59,35 @@ def check_valid_city(name: str, state_code: str,
             or not MIN_LONGITUDE <= longitude <= MAX_LONGITUDE:
         raise ValueError('Longitude must be between -180 and 180.')
     return True
+
+
+def create(name: str, state_code: str, latitude: float, longitude: float):
+    """
+    Add a new city and return it.
+    Returns None if the database is down.
+    """
+    check_valid_city(name, state_code, latitude, longitude)
+    if not is_db_up():
+        return None
+    city = {
+        NAME: name,
+        STATE_CODE: state_code,
+        LATITUDE: latitude,
+        LONGITUDE: longitude,
+    }
+    CITY_TEST_DATA.append(city)
+    return city
+
+
+def delete(name: str, state_code: str):
+    """
+    Delete a city by name and state code.
+    Returns True if deleted, False if not found, None if the DB is down.
+    """
+    if not is_db_up():
+        return None
+    for city in CITY_TEST_DATA:
+        if city[NAME] == name and city[STATE_CODE] == state_code:
+            CITY_TEST_DATA.remove(city)
+            return True
+    return False
