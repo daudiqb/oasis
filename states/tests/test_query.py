@@ -7,6 +7,35 @@ import states.query as qry
 TEST_ST = qry.TEST_STATE
 
 
+@pytest.mark.parametrize('state_code, expected', [
+    ('AL', {
+        'population': 4903185,
+        'capital': 'Montgomery',
+        'area_sq_miles': 52420,
+        'name': 'Alabama',
+    }),
+    ('AK', {
+        'population': 731545,
+        'capital': 'Juneau',
+        'area_sq_miles': 665384,
+        'name': 'Alaska',
+    }),
+])
+def test_read_one_existing_state(state_code, expected):
+    with patch('states.query.is_db_up', return_value=True):
+        assert qry.read_one(state_code) == expected
+
+
+def test_read_one_missing_state():
+    with patch('states.query.is_db_up', return_value=True):
+        assert qry.read_one('ZZ') is None
+
+
+def test_read_one_database_down():
+    with patch('states.query.is_db_up', return_value=False):
+        assert qry.read_one('AL') is None
+
+
 @pytest.mark.parametrize('state_code', [None, 12, [], {}, '', 'TOO'])
 def test_invalid_state_code_before_duplicate_lookup(state_code):
     with patch('states.query.exists') as mock_exists:
