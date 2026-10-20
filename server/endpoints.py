@@ -24,6 +24,8 @@ HELLO_EP = '/hello'
 HELLO_RESP = 'hello'
 STATES_EP = '/states'
 STATES_RESP = 'States:'
+STATE_EP = f'{STATES_EP}/<state_code>'
+STATE_RESP = 'State'
 CITIES_EP = '/cities'
 CITIES_RESP = 'Cities'
 MESSAGE = 'Message'
@@ -71,6 +73,26 @@ class States(Resource):
         if states is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {STATES_RESP: states}
+
+
+@api.route(STATE_EP)
+class State(Resource):
+    """Read a single state by its code."""
+
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, state_code):
+        """Return one state, 404 if missing, or 503 if the DB is down."""
+        state_exists = sqry.exists(state_code)
+        if state_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not state_exists:
+            raise wz.NotFound(f'State {state_code} not found.')
+        state = sqry.read_one(state_code)
+        if state is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {STATE_RESP: state}
 
 
 @api.route(CITIES_EP)
