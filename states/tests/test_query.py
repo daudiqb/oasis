@@ -40,60 +40,75 @@ def test_read_one_database_down():
 def test_invalid_state_code_before_duplicate_lookup(state_code):
     with patch('states.query.exists') as mock_exists:
         with pytest.raises(ValueError, match='State code must be'):
-            qry.check_valid_state(state_code, 0, 'Capital', 1, 'State')
+            qry.check_valid_state(state_code, 'State')
+        mock_exists.assert_not_called()
+
+
+@pytest.mark.parametrize('name', [None, 12, [], {}, '', '   '])
+def test_invalid_state_name(name):
+    with patch('states.query.exists') as mock_exists:
+        with pytest.raises(ValueError, match='State name must be'):
+            qry.check_valid_state('TS', name)
         mock_exists.assert_not_called()
 
 
 @pytest.mark.parametrize('population', [True, False, -1, 1.5, '10', None])
 def test_invalid_population(population):
     with pytest.raises(ValueError, match='Population must be'):
-        qry.check_valid_state('TS', population, 'Capital', 1, 'State')
+        qry.check_valid_state('TS', 'State', population=population)
 
 
 @pytest.mark.parametrize('population', [0, 1])
 def test_valid_population_boundaries(population):
-    assert qry.check_valid_state('TS', population, 'Capital', 1, 'State')
+    assert qry.check_valid_state('TS', 'State', population=population)
 
 
 def test_duplicate_state_code():
     with pytest.raises(ValueError, match='already exists'):
-        qry.check_valid_state('AL', 0, 'Capital', 1, 'State')
+        qry.check_valid_state('AL', 'Alabama')
 
 
-def test_check_valid_state():
-    ret = qry.check_valid_state(TEST_ST['state_code'],
-                                TEST_ST['population'],
-                                TEST_ST['capital'],
-                                TEST_ST['area_sq_miles'],
-                                TEST_ST['name'])
-    assert ret
+def test_check_valid_state_only_required_fields():
+    assert qry.check_valid_state('TS', 'Test State')
 
 
-def test_check_valid_state_bad_pop():
-    with pytest.raises(ValueError):
-        qry.check_valid_state(TEST_ST['state_code'],
-                              -23423,
-                              TEST_ST['capital'],
-                              TEST_ST['area_sq_miles'],
-                              TEST_ST['name'])
+def test_check_valid_state_all_fields():
+    assert qry.check_valid_state(**TEST_ST)
 
 
-def test_check_valid_state_code_too_short():
-    with pytest.raises(ValueError):
-        qry.check_valid_state('',
-                              TEST_ST['population'],
-                              TEST_ST['capital'],
-                              TEST_ST['area_sq_miles'],
-                              TEST_ST['name'])
+@pytest.mark.parametrize('function', [qry.check_valid_state, qry.create])
+@pytest.mark.parametrize('kwargs', [
+    {}, {'state_code': 'TS'}, {'name': 'Test State'},
+])
+def test_required_arguments(function, kwargs):
+    with pytest.raises(TypeError):
+        function(**kwargs)
 
 
-def test_check_valid_state_code_too_long():
-    with pytest.raises(ValueError):
-        qry.check_valid_state('X' * qry.STATE_CODE_LEN * 2,
-                              TEST_ST['population'],
-                              TEST_ST['capital'],
-                              TEST_ST['area_sq_miles'],
-                              TEST_ST['name'])
+@pytest.mark.parametrize('optional, expected', [
+    ({}, {'population': 0, 'capital': '', 'area_sq_miles': 0.0}),
+    ({'population': 42},
+     {'population': 42, 'capital': '', 'area_sq_miles': 0.0}),
+    ({'capital': 'Test Capital'},
+     {'population': 0, 'capital': 'Test Capital', 'area_sq_miles': 0.0}),
+    ({'area_sq_miles': 12.5},
+     {'population': 0, 'capital': '', 'area_sq_miles': 12.5}),
+    ({'population': 42, 'capital': 'Test Capital', 'area_sq_miles': 12.5},
+     {'population': 42, 'capital': 'Test Capital', 'area_sq_miles': 12.5}),
+])
+def test_create_optional_fields(optional, expected):
+    with patch.dict(qry.STATE_TEST_DATA, {}, clear=True):
+        with patch('states.query.is_db_up', return_value=True):
+            state = qry.create('TS', 'Test State', **optional)
+            assert state == {'name': 'Test State', **expected}
+            assert qry.read_one('TS') == state
+
+
+def test_create_invalid_name():
+    with patch.dict(qry.STATE_TEST_DATA, {}, clear=True):
+        with pytest.raises(ValueError, match='State name must be'):
+            qry.create('TS', '')
+        assert 'TS' not in qry.STATE_TEST_DATA
 
 
 def test_query():
