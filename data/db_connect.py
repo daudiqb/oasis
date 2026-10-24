@@ -3,6 +3,7 @@ All interaction with MongoDB should be through this file!
 We may be required to use a new database at any point.
 """
 import os
+from functools import wraps
 
 import pymongo as pm
 
@@ -114,3 +115,20 @@ def fetch_all_as_dict(key, collection, db=SE_DB):
         del doc[MONGO_ID]
         ret[doc[key]] = doc
     return ret
+
+
+def needs_db(fn):
+    """
+    Decorate any function that needs the database: if the DB is down,
+    print a message and return None instead of calling the function;
+    otherwise make sure we are connected, then call it.
+    Every query module should use this one copy.
+    """
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not is_db_up():
+            print('Database is down.')
+            return None
+        connect_db()
+        return fn(*args, **kwargs)
+    return wrapper
