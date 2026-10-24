@@ -24,7 +24,7 @@ def fake_db(monkeypatch):
             if matches(doc, filt):
                 doc.update(update_dict)
 
-    monkeypatch.setattr(qry, 'is_db_up', lambda: True)
+    monkeypatch.setattr(qry.dbc, 'is_db_up', lambda: True)
     monkeypatch.setattr(qry.dbc, 'connect_db', lambda: None)
     monkeypatch.setattr(qry.dbc, 'create',
                         lambda collection, doc, **kwargs: store.append(doc))
@@ -98,7 +98,7 @@ def test_update_status_not_found(fake_db):
         qry.update_status('nope', qry.ACCEPTED)
 
 
-@patch('purchase_requests.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_db_down(mock_is_db_up):
     assert qry.create('L1', 'buyer1', 'seller1') is None
     assert qry.read() is None

@@ -3,10 +3,9 @@ Queries on purchase requests, stored in MongoDB through data/db_connect.py.
 Each request is one document, identified by its request ID.
 """
 import uuid
-from functools import wraps
 
 import data.db_connect as dbc
-from data.db_connect import is_db_up
+from data.db_connect import needs_db
 
 COLLECT = 'purchase_requests'
 
@@ -23,22 +22,6 @@ REJECTED = 'rejected'
 CANCELLED = 'cancelled'
 # The statuses a pending request can be changed to:
 NEW_STATUSES = (ACCEPTED, REJECTED, CANCELLED)
-
-
-def needs_db(fn):
-    """
-    Decorate any function that needs the database: if the DB is down,
-    return None instead of calling the function; otherwise make sure
-    we are connected, then call it.
-    """
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not is_db_up():
-            print('Database is down.')
-            return None
-        dbc.connect_db()
-        return fn(*args, **kwargs)
-    return wrapper
 
 
 def _clean(doc: dict) -> dict:
