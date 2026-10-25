@@ -137,3 +137,6 @@ dmypy.json
 
 # Local agent project context
 /AGENTS.md
+
+# Node packages (never commit these)
+node_modules/
