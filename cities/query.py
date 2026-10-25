@@ -91,3 +91,26 @@ def delete(name: str, state_code: str):
             CITY_TEST_DATA.remove(city)
             return True
     return False
+
+
+def exists(name: str, state_code: str):
+    """
+    Check if a city exists.
+    Returns None if the database is down.
+    """
+    if not is_db_up():
+        return None
+    return any(city[NAME] == name and city[STATE_CODE] == state_code
+               for city in CITY_TEST_DATA)
+
+
+def read_one(name: str, state_code: str):
+    """
+    Return one city, or None if it is missing or the database is down.
+    """
+    if not is_db_up():
+        return None
+    for city in CITY_TEST_DATA:
+        if city[NAME] == name and city[STATE_CODE] == state_code:
+            return city
+    return None
