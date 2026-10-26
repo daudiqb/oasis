@@ -28,6 +28,8 @@ STATE_EP = f'{STATES_EP}/<state_code>'
 STATE_RESP = 'State'
 CITIES_EP = '/cities'
 CITIES_RESP = 'Cities'
+CITY_EP = f'{CITIES_EP}/<state_code>/<name>'
+CITY_RESP = 'City'
 MESSAGE = 'Message'
 
 
@@ -110,6 +112,29 @@ class Cities(Resource):
         if cities is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {CITIES_RESP: cities}
+
+
+@api.route(CITY_EP)
+class City(Resource):
+    """
+    Read a single city by its state code and name.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, state_code, name):
+        """
+        Return one city, 404 if missing, or 503 if the DB is down.
+        """
+        city_exists = cqry.exists(name, state_code)
+        if city_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not city_exists:
+            raise wz.NotFound(f'City {name}, {state_code} not found.')
+        city = cqry.read_one(name, state_code)
+        if city is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {CITY_RESP: city}
 
 
 PURCHASE_REQUESTS_EP = '/purchase-requests'

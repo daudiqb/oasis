@@ -155,3 +155,36 @@ def test_patch_purchase_request_db_unavailable(mock_exists):
     resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
                              json={'status': 'accepted'})
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('server.endpoints.cqry.read_one',
+       return_value={'name': 'Brooklyn', 'state_code': 'NY'},
+       autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=True, autospec=True)
+def test_get_city(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.CITIES_EP}/NY/Brooklyn')
+    assert resp.status_code == OK
+    assert resp.get_json() == {ep.CITY_RESP: mock_read_one.return_value}
+    mock_exists.assert_called_once_with('Brooklyn', 'NY')
+
+
+@patch('server.endpoints.cqry.read_one', autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=False, autospec=True)
+def test_get_city_not_found(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.CITIES_EP}/NY/Nowhere')
+    assert resp.status_code == NOT_FOUND
+    mock_read_one.assert_not_called()
+
+
+@patch('server.endpoints.cqry.read_one', autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=None, autospec=True)
+def test_get_city_db_unavailable(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.CITIES_EP}/NY/Brooklyn')
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('server.endpoints.cqry.read_one', return_value=None, autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=True, autospec=True)
+def test_get_city_db_unavailable_during_read(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.CITIES_EP}/NY/Brooklyn')
+    assert resp.status_code == SERVICE_UNAVAILABLE
