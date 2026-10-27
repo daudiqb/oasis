@@ -114,3 +114,68 @@ def test_create_invalid_name():
 def test_query():
     states = qry.read()
     assert isinstance(states, dict)
+
+
+@pytest.fixture
+def state_records():
+    records = {'TS': {key: value for key, value in TEST_ST.items()
+                      if key != 'state_code'}}
+    with patch.dict(qry.STATE_TEST_DATA, records, clear=True):
+        with patch('states.query.is_db_up', return_value=True):
+            yield qry.STATE_TEST_DATA
+
+
+@pytest.mark.parametrize('changes', [
+    {}, {'name': 'New State'}, {'population': 0}, {'capital': ''},
+    {'area_sq_miles': 0}, {'area_sq_miles': 12.5},
+    {'name': 'New State', 'population': 42,
+     'capital': 'New Capital', 'area_sq_miles': 20},
+])
+def test_update_partial(state_records, changes):
+    original = state_records['TS'].copy()
+    assert qry.update('TS', **changes) == {**original, **changes}
+    assert qry.read_one('TS') == {**original, **changes}
+    assert set(state_records) == {'TS'}
+
+
+@pytest.mark.parametrize('changes', [
+    {'name': None}, {'name': ''}, {'name': '  '}, {'name': 12},
+    {'population': None}, {'population': True}, {'population': -1},
+    {'population': 1.5}, {'population': '10'},
+    {'capital': None}, {'capital': 12},
+    {'area_sq_miles': None}, {'area_sq_miles': True},
+    {'area_sq_miles': -1}, {'area_sq_miles': '10'},
+    {'area_sq_miles': float('nan')}, {'area_sq_miles': float('inf')},
+    {'unknown': 'value'}, {'name': 'Valid', 'population': -1},
+])
+def test_update_invalid_is_atomic(state_records, changes):
+    original = state_records['TS'].copy()
+    with pytest.raises(ValueError):
+        qry.update('TS', **changes)
+    assert state_records == {'TS': original}
+
+
+def test_update_cannot_change_state_code(state_records):
+    original = state_records['TS'].copy()
+    with pytest.raises(TypeError):
+        qry.update('TS', **{'state_code': 'NY', 'name': 'New Name'})
+    assert state_records == {'TS': original}
+
+
+def test_update_missing_state(state_records):
+    with pytest.raises(ValueError, match='not found'):
+        qry.update('ZZ', name='Missing')
+    assert 'ZZ' not in state_records
+
+
+@pytest.mark.parametrize('state_code', [None, 12, [], {}, '', 'TOO'])
+def test_update_invalid_state_code(state_records, state_code):
+    with pytest.raises(ValueError, match='State code must be'):
+        qry.update(state_code, name='New Name')
+
+
+def test_update_database_down(state_records):
+    original = state_records['TS'].copy()
+    with patch('states.query.is_db_up', return_value=False):
+        assert qry.update('TS', name='New Name') is None
+    assert state_records == {'TS': original}

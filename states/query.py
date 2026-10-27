@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from math import isfinite
+
 from data.db_connect import is_db_up
 
 
@@ -99,6 +101,41 @@ def create(state_code: str, name: str, population: int = 0,
         "name": name,
     }
     return STATE_TEST_DATA[state_code]
+
+
+def update(state_code: str, **changes):
+    """Partially update a state without changing its code.
+
+    Return the updated record, or None if the database is down.
+    Raise ValueError for a missing state or invalid fields. Omitted fields
+    remain unchanged; an empty update returns the existing record.
+    """
+    if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
+        raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
+    allowed = {'name', 'population', 'capital', 'area_sq_miles'}
+    if changes.keys() - allowed:
+        raise ValueError('Only name, population, capital, and area_sq_miles '
+                         'can be updated; state code cannot be changed.')
+    if not is_db_up():
+        return None
+    current = STATE_TEST_DATA.get(state_code)
+    if current is None:
+        raise ValueError(f'State {state_code} not found.')
+    updated = {**current, **changes}
+    if not isinstance(updated['name'], str) or not updated['name'].strip():
+        raise ValueError('State name must be a non-empty string.')
+    population = updated['population']
+    if (not isinstance(population, int) or isinstance(population, bool)
+            or population < 0):
+        raise ValueError('Population must be a non-negative integer.')
+    if not isinstance(updated['capital'], str):
+        raise ValueError('Capital must be a string.')
+    area = updated['area_sq_miles']
+    if (not isinstance(area, (int, float)) or isinstance(area, bool)
+            or area < 0 or not isfinite(area)):
+        raise ValueError('Area must be a finite non-negative number.')
+    STATE_TEST_DATA[state_code] = updated
+    return updated
 
 
 def main():
