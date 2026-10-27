@@ -13,6 +13,7 @@ import werkzeug.exceptions as wz
 import states.query as sqry
 import cities.query as cqry
 import purchase_requests.query as prqry
+import listings.query as lqry
 
 app = Flask(__name__)
 CORS(app)
@@ -30,6 +31,8 @@ CITIES_EP = '/cities'
 CITIES_RESP = 'Cities'
 CITY_EP = f'{CITIES_EP}/<state_code>/<name>'
 CITY_RESP = 'City'
+LISTINGS_EP = '/listings'
+LISTINGS_RESP = 'Listings'
 MESSAGE = 'Message'
 
 
@@ -135,6 +138,23 @@ class City(Resource):
         if city is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {CITY_RESP: city}
+
+
+@api.route(LISTINGS_EP)
+class Listings(Resource):
+    """
+    Endpoint for reading all listings.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self):
+        """
+        Return all listings in the database.
+        """
+        listings = lqry.read()
+        if listings is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {LISTINGS_RESP: listings}
 
 
 PURCHASE_REQUESTS_EP = '/purchase-requests'

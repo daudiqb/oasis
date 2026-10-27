@@ -188,3 +188,22 @@ def test_get_city_db_unavailable(mock_exists, mock_read_one):
 def test_get_city_db_unavailable_during_read(mock_exists, mock_read_one):
     resp = TEST_CLIENT.get(f'{ep.CITIES_EP}/NY/Brooklyn')
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+FAKE_LISTING = {'listing_id': 'L1', 'title': 'Desk Lamp', 'description': '',
+                'price': 15.5, 'city': 'Brooklyn', 'state_code': 'NY',
+                'seller_id': 'seller1', 'status': 'available'}
+
+
+@patch('server.endpoints.lqry.read', return_value=[FAKE_LISTING],
+      autospec=True)
+def test_get_listings(mock_read):
+    resp = TEST_CLIENT.get(ep.LISTINGS_EP)
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.LISTINGS_RESP] == [FAKE_LISTING]
+
+
+@patch('server.endpoints.lqry.read', return_value=None, autospec=True)
+def test_get_listings_db_unavailable(mock_read):
+    resp = TEST_CLIENT.get(ep.LISTINGS_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
