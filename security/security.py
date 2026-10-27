@@ -66,6 +66,7 @@ security_recs = None
 temp_recs = {
     STATES: {
         CREATE: {USER_LIST: ['ejc369@nyu.edu']},
+        UPDATE: {USER_LIST: ['ejc369@nyu.edu']},
     },
     PEOPLE: {
         CREATE: {

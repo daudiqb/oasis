@@ -272,3 +272,84 @@ def test_post_state_db_unavailable(mock_db):
     resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS,
                             json={'state_code': 'TS', 'name': 'Test'})
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('server.endpoints.sqry.update',
+       return_value={'name': 'Updated'}, autospec=True)
+@patch('server.endpoints.sqry.exists', return_value=True, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_put_state_uses_update(mock_allow, mock_exists, mock_update):
+    resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS,
+                           json={'name': 'Updated'})
+    assert resp.status_code == OK
+    assert resp.get_json() == {ep.MESSAGE: 'State updated.',
+                               ep.STATE_RESP: mock_update.return_value}
+    mock_allow.assert_called_once_with('states', 'update', 'ejc369@nyu.edu')
+    mock_exists.assert_called_once_with('AL')
+    mock_update.assert_called_once_with('AL', name='Updated')
+
+
+def test_put_state_partial_and_empty():
+    original = ep.sqry.STATE_TEST_DATA['AL'].copy()
+    with patch.dict(ep.sqry.STATE_TEST_DATA, {'AL': original}, clear=True):
+        updates = ({'population': 0}, {},
+                   {'capital': '', 'area_sq_miles': 12.5, 'name': 'Updated'})
+        for changes in updates:
+            expected = {**ep.sqry.STATE_TEST_DATA['AL'], **changes}
+            resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL',
+                                   headers=STATE_HEADERS, json=changes)
+            assert resp.status_code == OK
+            assert resp.get_json()[ep.STATE_RESP] == expected
+            assert TEST_CLIENT.get(f'{ep.STATES_EP}/AL').get_json() == {
+                ep.STATE_RESP: expected}
+
+
+def test_put_state_invalid_body():
+    original = ep.sqry.STATE_TEST_DATA['AL'].copy()
+    for body in (None, [], 'state', {'state_code': 'NY'},
+                 {'state_code': 'AL'}, {'unknown': 1}, {'name': ''},
+                 {'name': 'Updated', 'population': -1}):
+        resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS,
+                               json=body)
+        assert resp.status_code == BAD_REQUEST
+        assert ep.sqry.STATE_TEST_DATA['AL'] == original
+    resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS,
+                           data='{broken', content_type='application/json')
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_put_state_missing_or_denied_header():
+    for headers, status in (({}, 401),
+                            ({ep.USER_EMAIL_HEADER: '  '}, 401),
+                            ({ep.USER_EMAIL_HEADER: 'other@nyu.edu'}, 403)):
+        with patch('server.endpoints.sqry.update') as update:
+            resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL', headers=headers,
+                                   json={'name': 'Updated'})
+        assert resp.status_code == status
+        update.assert_not_called()
+
+
+@patch('server.endpoints.sqry.update', autospec=True)
+def test_put_state_not_found(mock_update):
+    resp = TEST_CLIENT.put(f'{ep.STATES_EP}/ZZ', headers=STATE_HEADERS,
+                           json={'name': 'Missing'})
+    assert resp.status_code == NOT_FOUND
+    mock_update.assert_not_called()
+
+
+@patch('states.query.is_db_up', return_value=False)
+@patch('server.endpoints.sqry.update', autospec=True)
+def test_put_state_db_unavailable(mock_update, mock_db):
+    resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL',
+                           headers=STATE_HEADERS, json={})
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    mock_update.assert_not_called()
+
+
+@patch('server.endpoints.sqry.update', return_value=None, autospec=True)
+@patch('server.endpoints.sqry.exists', return_value=True, autospec=True)
+def test_put_state_db_unavailable_during_update(mock_exists, mock_update):
+    resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL',
+                           headers=STATE_HEADERS, json={})
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    mock_update.assert_called_once_with('AL')

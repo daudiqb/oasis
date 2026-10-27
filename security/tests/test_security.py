@@ -24,3 +24,8 @@ def test_required_security_checks():
     assert not sec.is_permitted(sec.PEOPLE, sec.CREATE, 'ejc369@nyu.edu')
     assert sec.is_permitted(sec.PEOPLE, sec.CREATE,
                             'ejc369@nyu.edu', login=True)
+
+
+def test_state_update_permissions():
+    assert sec.is_permitted(sec.STATES, sec.UPDATE, 'ejc369@nyu.edu')
+    assert not sec.is_permitted(sec.STATES, sec.UPDATE, 'other@nyu.edu')
