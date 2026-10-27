@@ -3,10 +3,9 @@ Query functions for the listings collection, stored in MongoDB
 through data/db_connect.py.
 """
 import uuid
-from functools import wraps
 
 import data.db_connect as dbc
-from data.db_connect import is_db_up
+from data.db_connect import needs_db
 
 COLLECT = 'listings'
 
@@ -44,25 +43,6 @@ def check_valid_listing(title: str, price: float, city: str,
     if not isinstance(seller_id, str) or not seller_id.strip():
         raise ValueError('Seller ID must be a non-empty string.')
     return True
-
-
-def needs_db(fn):
-    """
-    Decorate any function that needs the database: if the DB is down,
-    return None instead of calling the function; otherwise make sure
-    we are connected, then call it.
-
-    TODO: switch to the shared data.db_connect.needs_db once Anish's
-    A1 lands, so every module uses one copy.
-    """
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not is_db_up():
-            print('Database is down.')
-            return None
-        dbc.connect_db()
-        return fn(*args, **kwargs)
-    return wrapper
 
 
 @needs_db

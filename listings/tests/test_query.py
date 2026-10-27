@@ -33,7 +33,7 @@ def fake_db(monkeypatch):
     """
     store = []
 
-    monkeypatch.setattr(qry, 'is_db_up', lambda: True)
+    monkeypatch.setattr(qry.dbc, 'is_db_up', lambda: True)
     monkeypatch.setattr(qry.dbc, 'connect_db', lambda: None)
     monkeypatch.setattr(qry.dbc, 'create',
                         lambda collection, doc, **kwargs: store.append(doc))
@@ -67,7 +67,7 @@ def test_read(fake_db):
     assert len(qry.read()) == 2
 
 
-@patch('listings.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_db_down(mock_is_db_up):
     assert qry.create(*VALID) is None
     assert qry.read() is None
