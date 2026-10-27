@@ -196,7 +196,7 @@ FAKE_LISTING = {'listing_id': 'L1', 'title': 'Desk Lamp', 'description': '',
 
 
 @patch('server.endpoints.lqry.read', return_value=[FAKE_LISTING],
-      autospec=True)
+       autospec=True)
 def test_get_listings(mock_read):
     resp = TEST_CLIENT.get(ep.LISTINGS_EP)
     assert resp.status_code == OK
@@ -206,4 +206,69 @@ def test_get_listings(mock_read):
 @patch('server.endpoints.lqry.read', return_value=None, autospec=True)
 def test_get_listings_db_unavailable(mock_read):
     resp = TEST_CLIENT.get(ep.LISTINGS_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+STATE_HEADERS = {ep.USER_EMAIL_HEADER: 'ejc369@nyu.edu'}
+
+
+def test_post_state():
+    with patch.dict(ep.sqry.STATE_TEST_DATA, {}, clear=True):
+        with patch('server.endpoints.sec.is_permitted',
+                   return_value=True) as allow:
+            resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS,
+                                    json={'state_code': 'TS', 'name': 'Test'})
+        assert resp.status_code == CREATED
+        assert resp.get_json()[ep.STATE_RESP] == {
+            'name': 'Test', 'population': 0, 'capital': '',
+            'area_sq_miles': 0.0}
+        allow.assert_called_once_with('states', 'create', 'ejc369@nyu.edu')
+        assert TEST_CLIENT.get(f'{ep.STATES_EP}/TS').status_code == OK
+
+
+def test_post_state_all_fields():
+    with patch.dict(ep.sqry.STATE_TEST_DATA, {}, clear=True):
+        resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS,
+                                json=ep.sqry.TEST_STATE)
+        assert resp.status_code == CREATED
+        expected = dict(ep.sqry.TEST_STATE)
+        expected.pop('state_code')
+        assert resp.get_json()[ep.STATE_RESP] == expected
+
+
+def test_post_state_missing_header():
+    for headers in ({}, {ep.USER_EMAIL_HEADER: '   '}):
+        with patch('server.endpoints.sqry.create') as create:
+            with patch('server.endpoints.sec.is_permitted') as allow:
+                resp = TEST_CLIENT.post(ep.STATES_EP, headers=headers, json={})
+        assert resp.status_code == 401
+        allow.assert_not_called()
+        create.assert_not_called()
+
+
+def test_post_state_denied():
+    with patch('server.endpoints.sqry.create') as create:
+        resp = TEST_CLIENT.post(ep.STATES_EP,
+                                headers={ep.USER_EMAIL_HEADER:
+                                         'other@nyu.edu'},
+                                json={'state_code': 'TS', 'name': 'Test'})
+    assert resp.status_code == 403
+    create.assert_not_called()
+
+
+def test_post_state_invalid():
+    bodies = [None, [], 'state', {}, {'state_code': 'TS'},
+              {'state_code': 'TOO', 'name': 'Test'},
+              {'state_code': 'TS', 'name': ' '},
+              {'state_code': 'TS', 'name': 'Test', 'population': -1},
+              {'state_code': 'AL', 'name': 'Duplicate'}]
+    for body in bodies:
+        resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS, json=body)
+        assert resp.status_code == BAD_REQUEST
+
+
+@patch('states.query.is_db_up', return_value=False)
+def test_post_state_db_unavailable(mock_db):
+    resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS,
+                            json={'state_code': 'TS', 'name': 'Test'})
     assert resp.status_code == SERVICE_UNAVAILABLE

@@ -59,10 +59,14 @@ LOGIN = 'login'
 
 # Features:
 PEOPLE = 'people'
+STATES = 'states'
 
 security_recs = None
 # These will come from the DB soon:
 temp_recs = {
+    STATES: {
+        CREATE: {USER_LIST: ['ejc369@nyu.edu']},
+    },
     PEOPLE: {
         CREATE: {
             USER_LIST: ['ejc369@nyu.edu'],
@@ -103,5 +107,16 @@ def read_feature(feature_name: str) -> dict:
 
 
 @needs_recs
-def is_permitted(feature_name: str, action: str, user_email: str, **kwargs) -> bool:
-    return True
+def is_permitted(feature_name: str, action: str, user_email: str,
+                 **kwargs) -> bool:
+    feature = read_feature(feature_name)
+    if feature is None:
+        return True
+    permission = feature.get(action)
+    if permission is None:
+        return False
+    if user_email not in permission.get(USER_LIST, []):
+        return False
+    return all(kwargs.get(check) is True
+               for check, required in permission.get(CHECKS, {}).items()
+               if required)
