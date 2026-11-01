@@ -353,3 +353,24 @@ def test_put_state_db_unavailable_during_update(mock_exists, mock_update):
                            headers=STATE_HEADERS, json={})
     assert resp.status_code == SERVICE_UNAVAILABLE
     mock_update.assert_called_once_with('AL')
+
+
+@patch('server.endpoints.prqry.read_one', return_value=FAKE_PR, autospec=True)
+@patch('server.endpoints.prqry.exists', return_value=True, autospec=True)
+def test_get_purchase_request(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.PURCHASE_REQUESTS_EP}/abc')
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.PURCHASE_REQUEST_RESP] == FAKE_PR
+    mock_read_one.assert_called_once_with('abc')
+
+
+@patch('server.endpoints.prqry.exists', return_value=False, autospec=True)
+def test_get_purchase_request_not_found(mock_exists):
+    resp = TEST_CLIENT.get(f'{ep.PURCHASE_REQUESTS_EP}/nope')
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('server.endpoints.prqry.exists', return_value=None, autospec=True)
+def test_get_purchase_request_db_unavailable(mock_exists):
+    resp = TEST_CLIENT.get(f'{ep.PURCHASE_REQUESTS_EP}/abc')
+    assert resp.status_code == SERVICE_UNAVAILABLE

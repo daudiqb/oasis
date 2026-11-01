@@ -308,6 +308,20 @@ class PurchaseRequest(Resource):
     """
     Operations on a single purchase request.
     """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, request_id):
+        """
+        Return one purchase request.
+        """
+        request_exists = prqry.exists(request_id)
+        if request_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not request_exists:
+            raise wz.NotFound(f'Purchase request {request_id} not found.')
+        return {PURCHASE_REQUEST_RESP: prqry.read_one(request_id)}
+
     @api.expect(PURCHASE_REQUEST_UPDATE_FLDS)
     @api.response(HTTPStatus.OK.value, 'Success')
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
