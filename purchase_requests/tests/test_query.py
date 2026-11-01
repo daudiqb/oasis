@@ -104,3 +104,17 @@ def test_db_down(mock_is_db_up):
     assert qry.read() is None
     assert qry.exists('x') is None
     assert qry.update_status('x', qry.ACCEPTED) is None
+
+
+def test_read_one(fake_db):
+    req = qry.create('L1', 'buyer1', 'seller1', 'hello')
+    assert qry.read_one(req[qry.REQUEST_ID]) == req
+
+
+def test_read_one_not_found(fake_db):
+    assert qry.read_one('nope') is None
+
+
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
+def test_read_one_db_down(mock_is_db_up):
+    assert qry.read_one('x') is None

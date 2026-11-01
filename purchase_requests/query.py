@@ -79,6 +79,15 @@ def exists(request_id: str):
 
 
 @needs_db
+def read_one(request_id: str):
+    """
+    Return the purchase request with this ID, or None if there is none.
+    """
+    req = dbc.read_one(COLLECT, {REQUEST_ID: request_id})
+    return None if req is None else _clean(req)
+
+
+@needs_db
 def update_status(request_id: str, status: str):
     """
     Accept, reject, or cancel a pending request. Returns the updated request.
