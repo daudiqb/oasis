@@ -17,6 +17,7 @@ github: FORCE
 all_tests: FORCE
 	cd $(API_DIR); make tests
 	cd $(DB_DIR); make tests
+	cd $(SEC_DIR); make tests
 	cd cities; make tests
 	cd states; make tests
 	cd purchase_requests; make tests
