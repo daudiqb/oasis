@@ -1,9 +1,11 @@
 from http.client import (
     CREATED,
     BAD_REQUEST,
+    FORBIDDEN,
     NOT_FOUND,
     OK,
     SERVICE_UNAVAILABLE,
+    UNAUTHORIZED,
 )
 
 from unittest.mock import patch
@@ -83,6 +85,58 @@ def test_get_cities(mock_read):
 @patch('server.endpoints.cqry.read', return_value=None, autospec=True)
 def test_get_cities_db_unavailable(mock_read):
     resp = TEST_CLIENT.get(ep.CITIES_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+CITY_HEADERS = {ep.USER_EMAIL_HEADER: 'ejc369@nyu.edu'}
+NEW_CITY = {'name': 'Hoboken', 'state_code': 'NJ',
+            'latitude': 40.744, 'longitude': -74.0324}
+
+
+@patch('server.endpoints.cqry.create', return_value=NEW_CITY, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_city(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.CITIES_EP, headers=CITY_HEADERS, json=NEW_CITY)
+    assert resp.status_code == CREATED
+    assert resp.get_json()[ep.CITY_RESP] == NEW_CITY
+    mock_allow.assert_called_once_with(ep.sec.CITIES, ep.sec.CREATE,
+                                       'ejc369@nyu.edu')
+    mock_create.assert_called_once_with('Hoboken', 'NJ', 40.744, -74.0324)
+
+
+@patch('server.endpoints.cqry.create', autospec=True)
+def test_post_city_missing_header(mock_create):
+    resp = TEST_CLIENT.post(ep.CITIES_EP, json=NEW_CITY)
+    assert resp.status_code == UNAUTHORIZED
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints.cqry.create', autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=False, autospec=True)
+def test_post_city_denied(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.CITIES_EP, headers=CITY_HEADERS, json=NEW_CITY)
+    assert resp.status_code == FORBIDDEN
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_city_not_json(mock_allow):
+    resp = TEST_CLIENT.post(ep.CITIES_EP, headers=CITY_HEADERS, json=[])
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.cqry.create', side_effect=ValueError('bad city'),
+       autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_city_invalid(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.CITIES_EP, headers=CITY_HEADERS, json=NEW_CITY)
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.cqry.create', return_value=None, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_city_db_unavailable(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.CITIES_EP, headers=CITY_HEADERS, json=NEW_CITY)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 

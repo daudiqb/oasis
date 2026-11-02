@@ -185,10 +185,18 @@ class State(Resource):
         return {MESSAGE: 'State updated.', STATE_RESP: state}
 
 
+CITY_CREATE_FLDS = api.model('CreateCity', {
+    cqry.NAME: fields.String(required=True),
+    cqry.STATE_CODE: fields.String(required=True),
+    cqry.LATITUDE: fields.Float(required=True),
+    cqry.LONGITUDE: fields.Float(required=True),
+})
+
+
 @api.route(CITIES_EP)
 class Cities(Resource):
     """
-    Endpoint for reading all cities.
+    Endpoint for reading all cities and creating a city.
     """
     @api.response(HTTPStatus.OK.value, 'Success')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
@@ -200,6 +208,38 @@ class Cities(Resource):
         if cities is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {CITIES_RESP: cities}
+
+    @api.doc(params={USER_EMAIL_HEADER: {
+        'in': 'header', 'required': True, 'description': 'Acting user email',
+    }})
+    @api.expect(CITY_CREATE_FLDS)
+    @api.response(HTTPStatus.CREATED.value, 'Created')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """
+        Create a city when the header identifies a permitted user.
+        """
+        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
+        if not user_email:
+            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
+        if not sec.is_permitted(sec.CITIES, sec.CREATE, user_email):
+            raise wz.Forbidden('Not permitted to create cities.')
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise wz.BadRequest('Request body must be a JSON object.')
+        try:
+            city = cqry.create(
+                data.get(cqry.NAME), data.get(cqry.STATE_CODE),
+                data.get(cqry.LATITUDE), data.get(cqry.LONGITUDE))
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if city is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return ({MESSAGE: 'City created.', CITY_RESP: city},
+                HTTPStatus.CREATED)
 
 
 @api.route(CITY_EP)
