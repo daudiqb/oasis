@@ -60,6 +60,7 @@ LOGIN = 'login'
 # Features:
 PEOPLE = 'people'
 STATES = 'states'
+CITIES = 'cities'
 
 security_recs = None
 # These will come from the DB soon:
@@ -67,6 +68,9 @@ temp_recs = {
     STATES: {
         CREATE: {USER_LIST: ['ejc369@nyu.edu']},
         UPDATE: {USER_LIST: ['ejc369@nyu.edu']},
+    },
+    CITIES: {
+        CREATE: {USER_LIST: ['ejc369@nyu.edu']},
     },
     PEOPLE: {
         CREATE: {
