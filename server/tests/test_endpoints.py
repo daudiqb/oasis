@@ -70,16 +70,18 @@ def test_get_state_db_unavailable_during_read(mock_exists, mock_read_one):
     mock_read_one.assert_called_once_with('AL')
 
 
-def test_get_cities():
+@patch('server.endpoints.cqry.read',
+       return_value=[{'name': 'Brooklyn', 'state_code': 'NY'}],
+       autospec=True)
+def test_get_cities(mock_read):
     resp = TEST_CLIENT.get(ep.CITIES_EP)
     assert resp.status_code == OK
-    resp_json = resp.get_json()
-    assert ep.CITIES_RESP in resp_json
-    assert isinstance(resp_json[ep.CITIES_RESP], list)
+    assert resp.get_json() == {ep.CITIES_RESP: mock_read.return_value}
+    mock_read.assert_called_once()
 
 
-@patch('cities.query.is_db_up', return_value=False, autospec=True)
-def test_get_cities_db_unavailable(mock_is_db_up):
+@patch('server.endpoints.cqry.read', return_value=None, autospec=True)
+def test_get_cities_db_unavailable(mock_read):
     resp = TEST_CLIENT.get(ep.CITIES_EP)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
