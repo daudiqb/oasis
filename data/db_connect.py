@@ -50,12 +50,30 @@ def is_db_up():
     return True
 
 
+def needs_db(fn):
+    """
+    Decorate any function that needs the database: if the DB is down,
+    print a message and return None instead of calling the function;
+    otherwise make sure we are connected, then call it.
+    Every query module should use this one copy.
+    """
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not is_db_up():
+            print('Database is down.')
+            return None
+        connect_db()
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 def convert_mongo_id(doc: dict):
     if MONGO_ID in doc:
         # Convert mongo ID to a string so it works as JSON
         doc[MONGO_ID] = str(doc[MONGO_ID])
 
 
+@needs_db
 def create(collection, doc, db=SE_DB):
     """
     Insert a single doc into collection.
@@ -64,6 +82,7 @@ def create(collection, doc, db=SE_DB):
     return client[db][collection].insert_one(doc)
 
 
+@needs_db
 def read_one(collection, filt, db=SE_DB):
     """
     Find with a filter and return on the first doc found.
@@ -74,6 +93,7 @@ def read_one(collection, filt, db=SE_DB):
         return doc
 
 
+@needs_db
 def delete(collection: str, filt: dict, db=SE_DB):
     """
     Find with a filter and return on the first doc found.
@@ -83,10 +103,12 @@ def delete(collection: str, filt: dict, db=SE_DB):
     return del_result.deleted_count
 
 
+@needs_db
 def update(collection, filters, update_dict, db=SE_DB):
     return client[db][collection].update_one(filters, {'$set': update_dict})
 
 
+@needs_db
 def read(collection, db=SE_DB, no_id=True) -> list:
     """
     Returns a list from the db.
@@ -109,26 +131,10 @@ def read_dict(collection, key, db=SE_DB, no_id=True) -> dict:
     return recs_as_dict
 
 
+@needs_db
 def fetch_all_as_dict(key, collection, db=SE_DB):
     ret = {}
     for doc in client[db][collection].find():
         del doc[MONGO_ID]
         ret[doc[key]] = doc
     return ret
-
-
-def needs_db(fn):
-    """
-    Decorate any function that needs the database: if the DB is down,
-    print a message and return None instead of calling the function;
-    otherwise make sure we are connected, then call it.
-    Every query module should use this one copy.
-    """
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not is_db_up():
-            print('Database is down.')
-            return None
-        connect_db()
-        return fn(*args, **kwargs)
-    return wrapper
