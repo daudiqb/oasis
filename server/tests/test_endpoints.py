@@ -265,6 +265,65 @@ def test_get_listings_db_unavailable(mock_read):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+LISTING_HEADERS = {ep.USER_EMAIL_HEADER: 'ejc369@nyu.edu'}
+NEW_LISTING = {'title': 'Desk Lamp', 'price': 15.5, 'city': 'Brooklyn',
+               'state_code': 'NY', 'seller_id': 'seller1',
+               'description': 'Barely used'}
+
+
+@patch('server.endpoints.lqry.create', return_value=FAKE_LISTING,
+       autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_listing(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.LISTINGS_EP, headers=LISTING_HEADERS,
+                            json=NEW_LISTING)
+    assert resp.status_code == CREATED
+    assert resp.get_json()[ep.LISTING_RESP] == FAKE_LISTING
+    mock_allow.assert_called_once_with(ep.sec.LISTINGS, ep.sec.CREATE,
+                                       'ejc369@nyu.edu')
+    mock_create.assert_called_once_with('Desk Lamp', 15.5, 'Brooklyn', 'NY',
+                                        'seller1', 'Barely used')
+
+
+@patch('server.endpoints.lqry.create', autospec=True)
+def test_post_listing_missing_header(mock_create):
+    resp = TEST_CLIENT.post(ep.LISTINGS_EP, json=NEW_LISTING)
+    assert resp.status_code == UNAUTHORIZED
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints.lqry.create', autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=False, autospec=True)
+def test_post_listing_denied(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.LISTINGS_EP, headers=LISTING_HEADERS,
+                            json=NEW_LISTING)
+    assert resp.status_code == FORBIDDEN
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_listing_not_json(mock_allow):
+    resp = TEST_CLIENT.post(ep.LISTINGS_EP, headers=LISTING_HEADERS, json=[])
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.lqry.create', side_effect=ValueError('bad listing'),
+       autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_listing_invalid(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.LISTINGS_EP, headers=LISTING_HEADERS,
+                            json=NEW_LISTING)
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.lqry.create', return_value=None, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_post_listing_db_unavailable(mock_allow, mock_create):
+    resp = TEST_CLIENT.post(ep.LISTINGS_EP, headers=LISTING_HEADERS,
+                            json=NEW_LISTING)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 STATE_HEADERS = {ep.USER_EMAIL_HEADER: 'ejc369@nyu.edu'}
 
 

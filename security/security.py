@@ -61,6 +61,7 @@ LOGIN = 'login'
 PEOPLE = 'people'
 STATES = 'states'
 CITIES = 'cities'
+LISTINGS = 'listings'
 
 security_recs = None
 # These will come from the DB soon:
@@ -70,6 +71,9 @@ temp_recs = {
         UPDATE: {USER_LIST: ['ejc369@nyu.edu']},
     },
     CITIES: {
+        CREATE: {USER_LIST: ['ejc369@nyu.edu']},
+    },
+    LISTINGS: {
         CREATE: {USER_LIST: ['ejc369@nyu.edu']},
     },
     PEOPLE: {

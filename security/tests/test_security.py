@@ -34,3 +34,9 @@ def test_state_update_permissions():
 def test_city_create_permissions():
     assert sec.is_permitted(sec.CITIES, sec.CREATE, 'ejc369@nyu.edu')
     assert not sec.is_permitted(sec.CITIES, sec.CREATE, 'other@nyu.edu')
+
+
+def test_listing_create_permissions():
+    assert sec.is_permitted(sec.LISTINGS, sec.CREATE, 'ejc369@nyu.edu')
+    assert not sec.is_permitted(sec.LISTINGS, sec.CREATE, 'other@nyu.edu')
+    assert not sec.is_permitted(sec.LISTINGS, sec.DELETE, 'ejc369@nyu.edu')

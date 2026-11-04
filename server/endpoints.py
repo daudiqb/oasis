@@ -34,6 +34,7 @@ CITY_EP = f'{CITIES_EP}/<state_code>/<name>'
 CITY_RESP = 'City'
 LISTINGS_EP = '/listings'
 LISTINGS_RESP = 'Listings'
+LISTING_RESP = 'Listing'
 MESSAGE = 'Message'
 USER_EMAIL_HEADER = 'X-User-Email'
 
@@ -265,10 +266,20 @@ class City(Resource):
         return {CITY_RESP: city}
 
 
+LISTING_CREATE_FLDS = api.model('CreateListing', {
+    lqry.TITLE: fields.String(required=True),
+    lqry.PRICE: fields.Float(required=True),
+    lqry.CITY: fields.String(required=True),
+    lqry.STATE_CODE: fields.String(required=True),
+    lqry.SELLER_ID: fields.String(required=True),
+    lqry.DESCRIPTION: fields.String(),
+})
+
+
 @api.route(LISTINGS_EP)
 class Listings(Resource):
     """
-    Endpoint for reading all listings.
+    Endpoint for reading all listings and creating a listing.
     """
     @api.response(HTTPStatus.OK.value, 'Success')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
@@ -280,6 +291,40 @@ class Listings(Resource):
         if listings is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {LISTINGS_RESP: listings}
+
+    @api.doc(params={USER_EMAIL_HEADER: {
+        'in': 'header', 'required': True, 'description': 'Acting user email',
+    }})
+    @api.expect(LISTING_CREATE_FLDS)
+    @api.response(HTTPStatus.CREATED.value, 'Created')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """
+        Create a listing when the header identifies a permitted user.
+        """
+        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
+        if not user_email:
+            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
+        if not sec.is_permitted(sec.LISTINGS, sec.CREATE, user_email):
+            raise wz.Forbidden('Not permitted to create listings.')
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise wz.BadRequest('Request body must be a JSON object.')
+        try:
+            listing = lqry.create(
+                data.get(lqry.TITLE), data.get(lqry.PRICE),
+                data.get(lqry.CITY), data.get(lqry.STATE_CODE),
+                data.get(lqry.SELLER_ID),
+                data.get(lqry.DESCRIPTION, ''))
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if listing is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return ({MESSAGE: 'Listing created.', LISTING_RESP: listing},
+                HTTPStatus.CREATED)
 
 
 PURCHASE_REQUESTS_EP = '/purchase-requests'
