@@ -45,6 +45,13 @@ def check_valid_listing(title: str, price: float, city: str,
     return True
 
 
+def _clean(doc: dict) -> dict:
+    """
+    Return a copy of a listing without Mongo's internal ID.
+    """
+    return {key: val for key, val in doc.items() if key != dbc.MONGO_ID}
+
+
 @needs_db
 def create(title: str, price: float, city: str, state_code: str,
            seller_id: str, description: str = ''):
@@ -74,3 +81,20 @@ def read():
     Return a list of all listings.
     """
     return dbc.read(COLLECT)
+
+
+@needs_db
+def exists(listing_id: str):
+    """
+    Check if a listing exists.
+    """
+    return dbc.read_one(COLLECT, {LISTING_ID: listing_id}) is not None
+
+
+@needs_db
+def read_one(listing_id: str):
+    """
+    Return the listing with this ID, or None if there is none.
+    """
+    listing = dbc.read_one(COLLECT, {LISTING_ID: listing_id})
+    return None if listing is None else _clean(listing)

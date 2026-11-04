@@ -33,6 +33,12 @@ def fake_db(monkeypatch):
     """
     store = []
 
+    def fake_read_one(collection, filt, **kwargs):
+        return next((dict(doc) for doc in store
+                     if all(doc.get(key) == val
+                            for key, val in filt.items())), None)
+
+    monkeypatch.setattr(qry.dbc, 'read_one', fake_read_one)
     monkeypatch.setattr(qry.dbc, 'is_db_up', lambda: True)
     monkeypatch.setattr(qry.dbc, 'connect_db', lambda: None)
     monkeypatch.setattr(qry.dbc, 'create',
@@ -67,7 +73,35 @@ def test_read(fake_db):
     assert len(qry.read()) == 2
 
 
+def test_exists(fake_db):
+    listing = qry.create(*VALID)
+    assert qry.exists(listing[qry.LISTING_ID]) is True
+
+
+def test_exists_false(fake_db):
+    assert qry.exists('nope') is False
+
+
+def test_read_one(fake_db):
+    listing = qry.create(*VALID)
+    found = qry.read_one(listing[qry.LISTING_ID])
+    assert found[qry.TITLE] == listing[qry.TITLE]
+    assert found[qry.LISTING_ID] == listing[qry.LISTING_ID]
+
+
+def test_read_one_strips_mongo_id(fake_db):
+    listing = qry.create(*VALID)
+    fake_db[0][qry.dbc.MONGO_ID] = 'some-mongo-id'
+    assert qry.dbc.MONGO_ID not in qry.read_one(listing[qry.LISTING_ID])
+
+
+def test_read_one_missing(fake_db):
+    assert qry.read_one('nope') is None
+
+
 @patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_db_down(mock_is_db_up):
     assert qry.create(*VALID) is None
     assert qry.read() is None
+    assert qry.exists('x') is None
+    assert qry.read_one('x') is None

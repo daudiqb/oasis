@@ -34,6 +34,7 @@ CITY_EP = f'{CITIES_EP}/<state_code>/<name>'
 CITY_RESP = 'City'
 LISTINGS_EP = '/listings'
 LISTINGS_RESP = 'Listings'
+LISTING_EP = f'{LISTINGS_EP}/<listing_id>'
 LISTING_RESP = 'Listing'
 MESSAGE = 'Message'
 USER_EMAIL_HEADER = 'X-User-Email'
@@ -325,6 +326,29 @@ class Listings(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         return ({MESSAGE: 'Listing created.', LISTING_RESP: listing},
                 HTTPStatus.CREATED)
+
+
+@api.route(LISTING_EP)
+class Listing(Resource):
+    """
+    Read a single listing by its ID.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, listing_id):
+        """
+        Return one listing, 404 if missing, or 503 if the DB is down.
+        """
+        listing_exists = lqry.exists(listing_id)
+        if listing_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not listing_exists:
+            raise wz.NotFound(f'Listing {listing_id} not found.')
+        listing = lqry.read_one(listing_id)
+        if listing is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {LISTING_RESP: listing}
 
 
 PURCHASE_REQUESTS_EP = '/purchase-requests'

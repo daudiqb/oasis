@@ -324,6 +324,41 @@ def test_post_listing_db_unavailable(mock_allow, mock_create):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+@patch('server.endpoints.lqry.read_one', return_value=FAKE_LISTING,
+       autospec=True)
+@patch('server.endpoints.lqry.exists', return_value=True, autospec=True)
+def test_get_listing(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.LISTINGS_EP}/L1')
+    assert resp.status_code == OK
+    assert resp.get_json() == {ep.LISTING_RESP: FAKE_LISTING}
+    mock_exists.assert_called_once_with('L1')
+    mock_read_one.assert_called_once_with('L1')
+
+
+@patch('server.endpoints.lqry.read_one', autospec=True)
+@patch('server.endpoints.lqry.exists', return_value=False, autospec=True)
+def test_get_listing_not_found(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.LISTINGS_EP}/nope')
+    assert resp.status_code == NOT_FOUND
+    mock_read_one.assert_not_called()
+
+
+@patch('server.endpoints.lqry.read_one', autospec=True)
+@patch('server.endpoints.lqry.exists', return_value=None, autospec=True)
+def test_get_listing_db_unavailable(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.LISTINGS_EP}/L1')
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    mock_read_one.assert_not_called()
+
+
+@patch('server.endpoints.lqry.read_one', return_value=None, autospec=True)
+@patch('server.endpoints.lqry.exists', return_value=True, autospec=True)
+def test_get_listing_db_unavailable_during_read(mock_exists, mock_read_one):
+    resp = TEST_CLIENT.get(f'{ep.LISTINGS_EP}/L1')
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    mock_read_one.assert_called_once_with('L1')
+
+
 STATE_HEADERS = {ep.USER_EMAIL_HEADER: 'ejc369@nyu.edu'}
 
 
