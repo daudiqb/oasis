@@ -17,3 +17,15 @@ or city query is unavailable. Invalid codes and states with cities raise
 `ValueError` without deleting the state. `DELETE /states/<state_code>` requires
 an `X-User-Email` permitted to delete states; it returns 200 on success, 400 for
 invalid codes or remaining cities, 404 for missing states, and 503 for outages.
+
+`load_states()` in `states/load.py` reads the bundled `raw_data/states.csv`
+using a path relative to the module, so it works from any working directory.
+It returns 50 records with `state_code` and `name`, plus default population,
+capital, and area values. DC and Puerto Rico are excluded because they are not
+states. Missing columns, invalid records, and duplicate codes raise errors.
+An optional file path supports other CSV files with the same columns.
+
+The query module initializes its state records from this loader, preserving
+previously available details for Alabama, Alaska, and Arizona. Run
+`python -m states.load` to print the normalized records, or append a CSV path.
+The current query storage is in memory; loading does not persist to MongoDB.

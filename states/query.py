@@ -4,6 +4,7 @@ from math import isfinite
 
 from data.db_connect import is_db_up
 import cities.query as cqry
+from states.load import load_states
 
 
 STATE_CODE_LEN = 2
@@ -17,6 +18,13 @@ TEST_STATE = {
 }
 
 STATE_TEST_DATA = {
+    state['state_code']: {key: value for key, value in state.items()
+                          if key != 'state_code'}
+    for state in load_states()
+}
+
+# Preserve details already available for these states; the CSV has only names.
+STATE_TEST_DATA.update({
     "AL": {
         "population": 4903185,
         "capital": "Montgomery",
@@ -35,8 +43,7 @@ STATE_TEST_DATA = {
         "area_sq_miles": 113990,
         "name": 'Arizona',
     },
-    # Add more states as needed
-}
+})
 
 
 def read():
