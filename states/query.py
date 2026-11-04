@@ -3,6 +3,7 @@
 from math import isfinite
 
 from data.db_connect import is_db_up
+import cities.query as cqry
 
 
 STATE_CODE_LEN = 2
@@ -136,6 +137,27 @@ def update(state_code: str, **changes):
         raise ValueError('Area must be a finite non-negative number.')
     STATE_TEST_DATA[state_code] = updated
     return updated
+
+
+def delete(state_code: str):
+    """Delete a state only when it has no cities.
+
+    Return True if deleted, False if missing, or None if either query is
+    unavailable. Raise ValueError for an invalid code or remaining cities.
+    """
+    if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
+        raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
+    if not is_db_up():
+        return None
+    if state_code not in STATE_TEST_DATA:
+        return False
+    cities = cqry.read()
+    if cities is None:
+        return None
+    if any(city[cqry.STATE_CODE] == state_code for city in cities):
+        raise ValueError(f'State {state_code} still has cities.')
+    del STATE_TEST_DATA[state_code]
+    return True
 
 
 def main():

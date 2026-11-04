@@ -13,7 +13,9 @@ def test_state_create_permissions():
     assert sec.is_permitted(sec.STATES, sec.CREATE, 'ejc369@nyu.edu')
     assert not sec.is_permitted(sec.STATES, sec.CREATE, 'other@nyu.edu')
     assert not sec.is_permitted(sec.STATES, sec.CREATE, '')
-    assert not sec.is_permitted(sec.STATES, sec.DELETE, 'ejc369@nyu.edu')
+    assert sec.is_permitted(sec.STATES, sec.DELETE, 'ejc369@nyu.edu')
+    assert not sec.is_permitted(sec.STATES, sec.DELETE, 'other@nyu.edu')
+    assert not sec.is_permitted(sec.STATES, sec.DELETE, '')
 
 
 def test_unconfigured_feature_is_open():

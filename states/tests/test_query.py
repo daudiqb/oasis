@@ -179,3 +179,46 @@ def test_update_database_down(state_records):
     with patch('states.query.is_db_up', return_value=False):
         assert qry.update('TS', name='New Name') is None
     assert state_records == {'TS': original}
+
+
+def test_delete_state_without_cities(state_records):
+    with patch('states.query.cqry.read', return_value=[{'state_code': 'NY'}]):
+        assert qry.delete('TS') is True
+    assert 'TS' not in state_records
+    assert qry.read_one('TS') is None
+
+
+def test_delete_state_with_cities(state_records):
+    original = state_records.copy()
+    with patch('states.query.cqry.read', return_value=[{'state_code': 'TS'}]):
+        with pytest.raises(ValueError, match='still has cities'):
+            qry.delete('TS')
+    assert state_records == original
+
+
+def test_delete_missing_state(state_records):
+    with patch('states.query.cqry.read') as read_cities:
+        assert qry.delete('ZZ') is False
+    read_cities.assert_not_called()
+    assert 'TS' in state_records
+
+
+@pytest.mark.parametrize('state_code', [None, 12, [], {}, '', 'TOO'])
+def test_delete_invalid_state_code(state_records, state_code):
+    with pytest.raises(ValueError, match='State code must be'):
+        qry.delete(state_code)
+    assert 'TS' in state_records
+
+
+def test_delete_database_down(state_records):
+    with patch('states.query.is_db_up', return_value=False):
+        with patch('states.query.cqry.read') as read_cities:
+            assert qry.delete('TS') is None
+    read_cities.assert_not_called()
+    assert 'TS' in state_records
+
+
+def test_delete_city_query_unavailable(state_records):
+    with patch('states.query.cqry.read', return_value=None):
+        assert qry.delete('TS') is None
+    assert 'TS' in state_records

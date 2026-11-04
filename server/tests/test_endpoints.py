@@ -524,3 +524,60 @@ def test_get_purchase_request_not_found(mock_exists):
 def test_get_purchase_request_db_unavailable(mock_exists):
     resp = TEST_CLIENT.get(f'{ep.PURCHASE_REQUESTS_EP}/abc')
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+def test_delete_state():
+    with patch.dict(ep.sqry.STATE_TEST_DATA, {'TS': {'name': 'Test'}},
+                    clear=True):
+        with patch('server.endpoints.sec.is_permitted',
+                   return_value=True) as allow:
+            resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/TS',
+                                      headers=STATE_HEADERS)
+        assert resp.status_code == OK
+        assert resp.get_json() == {ep.MESSAGE: 'State deleted.'}
+        allow.assert_called_once_with('states', 'delete', 'ejc369@nyu.edu')
+        assert TEST_CLIENT.get(f'{ep.STATES_EP}/TS').status_code == NOT_FOUND
+
+
+def test_delete_state_with_cities():
+    with patch.dict(ep.sqry.STATE_TEST_DATA, {'NY': {'name': 'New York'}},
+                    clear=True):
+        resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/NY', headers=STATE_HEADERS)
+        assert resp.status_code == BAD_REQUEST
+        assert 'still has cities' in resp.get_json()['message']
+        assert ep.sqry.STATE_TEST_DATA['NY'] == {'name': 'New York'}
+
+
+def test_delete_state_missing_or_denied_header():
+    for headers, status in (({}, UNAUTHORIZED),
+                            ({ep.USER_EMAIL_HEADER: '  '}, UNAUTHORIZED),
+                            ({ep.USER_EMAIL_HEADER: 'other@nyu.edu'},
+                             FORBIDDEN)):
+        with patch('server.endpoints.sqry.delete') as delete:
+            resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL', headers=headers)
+        assert resp.status_code == status
+        delete.assert_not_called()
+
+
+def test_delete_state_not_found():
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/ZZ', headers=STATE_HEADERS)
+    assert resp.status_code == NOT_FOUND
+
+
+def test_delete_state_invalid_code():
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/TOO', headers=STATE_HEADERS)
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('states.query.is_db_up', return_value=False)
+def test_delete_state_database_down(mock_db):
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    assert 'AL' in ep.sqry.STATE_TEST_DATA
+
+
+@patch('states.query.cqry.read', return_value=None)
+def test_delete_state_city_query_unavailable(mock_read):
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+    assert 'AL' in ep.sqry.STATE_TEST_DATA

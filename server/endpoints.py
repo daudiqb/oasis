@@ -134,7 +134,7 @@ class States(Resource):
 
 @api.route(STATE_EP)
 class State(Resource):
-    """Read or update a single state by its code."""
+    """Read, update, or delete a single state by its code."""
 
     @api.response(HTTPStatus.OK.value, 'Success')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
@@ -185,6 +185,32 @@ class State(Resource):
         if state is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'State updated.', STATE_RESP: state}
+
+    @api.doc(params={USER_EMAIL_HEADER: {
+        'in': 'header', 'required': True, 'description': 'Acting user email',
+    }})
+    @api.response(HTTPStatus.OK.value, 'Deleted')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid code or has cities')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, state_code):
+        """Delete a state when permitted and no cities reference it."""
+        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
+        if not user_email:
+            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
+        if not sec.is_permitted(sec.STATES, sec.DELETE, user_email):
+            raise wz.Forbidden('Not permitted to delete states.')
+        try:
+            deleted = sqry.delete(state_code)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if deleted is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not deleted:
+            raise wz.NotFound(f'State {state_code} not found.')
+        return {MESSAGE: 'State deleted.'}
 
 
 CITY_CREATE_FLDS = api.model('CreateCity', {
