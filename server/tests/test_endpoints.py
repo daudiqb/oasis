@@ -246,6 +246,49 @@ def test_get_city_db_unavailable_during_read(mock_exists, mock_read_one):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+@patch('server.endpoints.cqry.delete', return_value=True, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_delete_city(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.CITIES_EP}/NY/Brooklyn',
+                              headers=CITY_HEADERS)
+    assert resp.status_code == OK
+    mock_allow.assert_called_once_with(ep.sec.CITIES, ep.sec.DELETE,
+                                       'ejc369@nyu.edu')
+    mock_delete.assert_called_once_with('Brooklyn', 'NY')
+
+
+@patch('server.endpoints.cqry.delete', autospec=True)
+def test_delete_city_missing_header(mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.CITIES_EP}/NY/Brooklyn')
+    assert resp.status_code == UNAUTHORIZED
+    mock_delete.assert_not_called()
+
+
+@patch('server.endpoints.cqry.delete', autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=False, autospec=True)
+def test_delete_city_denied(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.CITIES_EP}/NY/Brooklyn',
+                              headers=CITY_HEADERS)
+    assert resp.status_code == FORBIDDEN
+    mock_delete.assert_not_called()
+
+
+@patch('server.endpoints.cqry.delete', return_value=False, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_delete_city_not_found(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.CITIES_EP}/NY/Nowhere',
+                              headers=CITY_HEADERS)
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('server.endpoints.cqry.delete', return_value=None, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_delete_city_db_unavailable(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.CITIES_EP}/NY/Brooklyn',
+                              headers=CITY_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 FAKE_LISTING = {'listing_id': 'L1', 'title': 'Desk Lamp', 'description': '',
                 'price': 15.5, 'city': 'Brooklyn', 'state_code': 'NY',
                 'seller_id': 'seller1', 'status': 'available'}
