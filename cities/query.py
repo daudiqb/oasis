@@ -1,7 +1,11 @@
 """
-Query functions for the cities collection
+Query functions for the cities collection, stored in MongoDB
+through data/db_connect.py.
 """
-from data.db_connect import is_db_up
+import data.db_connect as dbc
+from data.db_connect import needs_db
+
+CITIES_COLLECT = 'cities'
 
 NAME = 'name'
 STATE_CODE = 'state_code'
@@ -22,24 +26,20 @@ TEST_CITY = {
 }
 
 
-CITY_TEST_DATA = [
-    {NAME: 'Brooklyn', STATE_CODE: 'NY',
-     LATITUDE: 40.6782, LONGITUDE: -73.9442},
-    {NAME: 'Manhattan', STATE_CODE: 'NY',
-     LATITUDE: 40.7831, LONGITUDE: -73.9712},
-    {NAME: 'Jersey City', STATE_CODE: 'NJ',
-     LATITUDE: 40.7178, LONGITUDE: -74.0431},
-]
+def city_filter(name: str, state_code: str) -> dict:
+    """
+    Return the MongoDB filter that finds one city.
+    """
+    return {NAME: name, STATE_CODE: state_code}
 
 
+@needs_db
 def read():
     """
     Return a list of all cities.
     Returns None if the database is down.
     """
-    if not is_db_up():
-        return None
-    return CITY_TEST_DATA
+    return dbc.read(CITIES_COLLECT)
 
 
 def check_valid_city(name: str, state_code: str,
@@ -63,54 +63,45 @@ def check_valid_city(name: str, state_code: str,
 
 def create(name: str, state_code: str, latitude: float, longitude: float):
     """
-    Add a new city and return it.
+    Add a new city to the database and return it.
     Returns None if the database is down.
     """
     check_valid_city(name, state_code, latitude, longitude)
-    if not is_db_up():
-        return None
     city = {
         NAME: name,
         STATE_CODE: state_code,
         LATITUDE: latitude,
         LONGITUDE: longitude,
     }
-    CITY_TEST_DATA.append(city)
+    if dbc.create(CITIES_COLLECT, dict(city)) is None:
+        return None
     return city
 
 
+@needs_db
 def delete(name: str, state_code: str):
     """
     Delete a city by name and state code.
     Returns True if deleted, False if not found, None if the DB is down.
     """
-    if not is_db_up():
-        return None
-    for city in CITY_TEST_DATA:
-        if city[NAME] == name and city[STATE_CODE] == state_code:
-            CITY_TEST_DATA.remove(city)
-            return True
-    return False
+    return dbc.delete(CITIES_COLLECT, city_filter(name, state_code)) > 0
 
 
+@needs_db
 def exists(name: str, state_code: str):
     """
     Check if a city exists.
     Returns None if the database is down.
     """
-    if not is_db_up():
-        return None
-    return any(city[NAME] == name and city[STATE_CODE] == state_code
-               for city in CITY_TEST_DATA)
+    return read_one(name, state_code) is not None
 
 
+@needs_db
 def read_one(name: str, state_code: str):
     """
     Return one city, or None if it is missing or the database is down.
     """
-    if not is_db_up():
-        return None
-    for city in CITY_TEST_DATA:
-        if city[NAME] == name and city[STATE_CODE] == state_code:
-            return city
-    return None
+    city = dbc.read_one(CITIES_COLLECT, city_filter(name, state_code))
+    if city is not None:
+        del city[dbc.MONGO_ID]
+    return city

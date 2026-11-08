@@ -17,14 +17,13 @@ def temp_city():
     qry.delete(city[qry.NAME], city[qry.STATE_CODE])
 
 
-def test_read():
+def test_read(temp_city):
     cities = qry.read()
     assert isinstance(cities, list)
-    assert len(cities) > 0
-    assert qry.NAME in cities[0]
+    assert temp_city in cities
 
 
-@patch('cities.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_read_db_down(mock_is_db_up):
     assert qry.read() is None
 
@@ -94,7 +93,7 @@ def test_create_duplicate(temp_city):
                    TEST_CITY[qry.LONGITUDE])
 
 
-@patch('cities.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_create_db_down(mock_is_db_up):
     assert qry.create(TEST_CITY[qry.NAME],
                       TEST_CITY[qry.STATE_CODE],
@@ -102,7 +101,7 @@ def test_create_db_down(mock_is_db_up):
                       TEST_CITY[qry.LONGITUDE]) is None
 
 
-@patch('cities.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_delete_db_down(mock_is_db_up):
     assert qry.delete(TEST_CITY[qry.NAME], TEST_CITY[qry.STATE_CODE]) is None
 
@@ -115,7 +114,7 @@ def test_exists_missing_city():
     assert qry.exists('No Such City', 'ZZ') is False
 
 
-@patch('cities.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_exists_db_down(mock_is_db_up):
     assert qry.exists(TEST_CITY[qry.NAME], TEST_CITY[qry.STATE_CODE]) is None
 
@@ -129,7 +128,7 @@ def test_read_one_missing_city():
     assert qry.read_one('No Such City', 'ZZ') is None
 
 
-@patch('cities.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_read_one_db_down(mock_is_db_up):
     assert qry.read_one(TEST_CITY[qry.NAME],
                         TEST_CITY[qry.STATE_CODE]) is None

@@ -582,7 +582,8 @@ def test_delete_state():
         assert TEST_CLIENT.get(f'{ep.STATES_EP}/TS').status_code == NOT_FOUND
 
 
-def test_delete_state_with_cities():
+@patch('states.query.cqry.read', return_value=[{'state_code': 'NY'}])
+def test_delete_state_with_cities(mock_read):
     with patch.dict(ep.sqry.STATE_TEST_DATA, {'NY': {'name': 'New York'}},
                     clear=True):
         resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/NY', headers=STATE_HEADERS)
