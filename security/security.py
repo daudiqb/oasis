@@ -73,6 +73,7 @@ temp_recs = {
     },
     CITIES: {
         CREATE: {USER_LIST: ['ejc369@nyu.edu']},
+        DELETE: {USER_LIST: ['ejc369@nyu.edu']},
     },
     LISTINGS: {
         CREATE: {USER_LIST: ['ejc369@nyu.edu']},
