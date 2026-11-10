@@ -10,9 +10,17 @@ from http.client import (
 
 from unittest.mock import patch
 
+import pytest
+
 import server.endpoints as ep
 
 TEST_CLIENT = ep.app.test_client()
+
+
+@pytest.fixture(autouse=True)
+def mock_database_connection():
+    with patch('data.db_connect.connect_db'):
+        yield
 
 
 def test_hello():
@@ -29,7 +37,7 @@ def test_get_states():
     assert isinstance(resp_json[ep.STATES_RESP], dict)
 
 
-@patch('states.query.is_db_up', return_value=False, autospec=True)
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_get_states_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.STATES_EP)
     assert resp.status_code == SERVICE_UNAVAILABLE
@@ -405,8 +413,8 @@ def test_get_listing_db_unavailable_during_read(mock_exists, mock_read_one):
 STATE_HEADERS = {ep.USER_EMAIL_HEADER: 'ejc369@nyu.edu'}
 
 
-def test_post_state():
-    with patch.dict(ep.sqry.STATE_TEST_DATA, {}, clear=True):
+def test_post_state(state_store):
+    with patch.dict(state_store, {}, clear=True):
         with patch('server.endpoints.sec.is_permitted',
                    return_value=True) as allow:
             resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS,
@@ -419,8 +427,8 @@ def test_post_state():
         assert TEST_CLIENT.get(f'{ep.STATES_EP}/TS').status_code == OK
 
 
-def test_post_state_all_fields():
-    with patch.dict(ep.sqry.STATE_TEST_DATA, {}, clear=True):
+def test_post_state_all_fields(state_store):
+    with patch.dict(state_store, {}, clear=True):
         resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS,
                                 json=ep.sqry.TEST_STATE)
         assert resp.status_code == CREATED
@@ -460,7 +468,7 @@ def test_post_state_invalid():
         assert resp.status_code == BAD_REQUEST
 
 
-@patch('states.query.is_db_up', return_value=False)
+@patch('data.db_connect.is_db_up', return_value=False)
 def test_post_state_db_unavailable(mock_db):
     resp = TEST_CLIENT.post(ep.STATES_EP, headers=STATE_HEADERS,
                             json={'state_code': 'TS', 'name': 'Test'})
@@ -482,13 +490,13 @@ def test_put_state_uses_update(mock_allow, mock_exists, mock_update):
     mock_update.assert_called_once_with('AL', name='Updated')
 
 
-def test_put_state_partial_and_empty():
-    original = ep.sqry.STATE_TEST_DATA['AL'].copy()
-    with patch.dict(ep.sqry.STATE_TEST_DATA, {'AL': original}, clear=True):
+def test_put_state_partial_and_empty(state_store):
+    original = state_store['AL'].copy()
+    with patch.dict(state_store, {'AL': original}, clear=True):
         updates = ({'population': 0}, {},
                    {'capital': '', 'area_sq_miles': 12.5, 'name': 'Updated'})
         for changes in updates:
-            expected = {**ep.sqry.STATE_TEST_DATA['AL'], **changes}
+            expected = {**state_store['AL'], **changes}
             resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL',
                                    headers=STATE_HEADERS, json=changes)
             assert resp.status_code == OK
@@ -497,15 +505,15 @@ def test_put_state_partial_and_empty():
                 ep.STATE_RESP: expected}
 
 
-def test_put_state_invalid_body():
-    original = ep.sqry.STATE_TEST_DATA['AL'].copy()
+def test_put_state_invalid_body(state_store):
+    original = state_store['AL'].copy()
     for body in (None, [], 'state', {'state_code': 'NY'},
                  {'state_code': 'AL'}, {'unknown': 1}, {'name': ''},
                  {'name': 'Updated', 'population': -1}):
         resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS,
                                json=body)
         assert resp.status_code == BAD_REQUEST
-        assert ep.sqry.STATE_TEST_DATA['AL'] == original
+        assert state_store['AL'] == original
     resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS,
                            data='{broken', content_type='application/json')
     assert resp.status_code == BAD_REQUEST
@@ -530,7 +538,7 @@ def test_put_state_not_found(mock_update):
     mock_update.assert_not_called()
 
 
-@patch('states.query.is_db_up', return_value=False)
+@patch('data.db_connect.is_db_up', return_value=False)
 @patch('server.endpoints.sqry.update', autospec=True)
 def test_put_state_db_unavailable(mock_update, mock_db):
     resp = TEST_CLIENT.put(f'{ep.STATES_EP}/AL',
@@ -569,8 +577,8 @@ def test_get_purchase_request_db_unavailable(mock_exists):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-def test_delete_state():
-    with patch.dict(ep.sqry.STATE_TEST_DATA, {'TS': {'name': 'Test'}},
+def test_delete_state(state_store):
+    with patch.dict(state_store, {'TS': {'name': 'Test'}},
                     clear=True):
         with patch('server.endpoints.sec.is_permitted',
                    return_value=True) as allow:
@@ -583,13 +591,13 @@ def test_delete_state():
 
 
 @patch('states.query.cqry.read', return_value=[{'state_code': 'NY'}])
-def test_delete_state_with_cities(mock_read):
-    with patch.dict(ep.sqry.STATE_TEST_DATA, {'NY': {'name': 'New York'}},
+def test_delete_state_with_cities(mock_read, state_store):
+    with patch.dict(state_store, {'NY': {'name': 'New York'}},
                     clear=True):
         resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/NY', headers=STATE_HEADERS)
         assert resp.status_code == BAD_REQUEST
         assert 'still has cities' in resp.get_json()['message']
-        assert ep.sqry.STATE_TEST_DATA['NY'] == {'name': 'New York'}
+        assert state_store['NY'] == {'name': 'New York'}
 
 
 def test_delete_state_missing_or_denied_header():
@@ -613,15 +621,18 @@ def test_delete_state_invalid_code():
     assert resp.status_code == BAD_REQUEST
 
 
-@patch('states.query.is_db_up', return_value=False)
-def test_delete_state_database_down(mock_db):
+@patch('data.db_connect.is_db_up', return_value=False)
+def test_delete_state_database_down(mock_db, state_store):
     resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS)
     assert resp.status_code == SERVICE_UNAVAILABLE
-    assert 'AL' in ep.sqry.STATE_TEST_DATA
+    assert 'AL' in state_store
 
 
 @patch('states.query.cqry.read', return_value=None)
-def test_delete_state_city_query_unavailable(mock_read):
+def test_delete_state_city_query_unavailable(mock_read, state_store):
     resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL', headers=STATE_HEADERS)
     assert resp.status_code == SERVICE_UNAVAILABLE
-    assert 'AL' in ep.sqry.STATE_TEST_DATA
+    assert 'AL' in state_store
+
+
+pytestmark = pytest.mark.usefixtures("state_store")

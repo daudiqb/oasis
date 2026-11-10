@@ -3,7 +3,6 @@ from unittest.mock import patch
 import pytest
 
 from states.load import load_states, main
-import states.query as qry
 
 
 EXPECTED_CODES = set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA '
@@ -19,12 +18,6 @@ def test_load_all_50_states():
         'state_code': 'NY', 'name': 'New York', 'population': 0,
         'capital': '', 'area_sq_miles': 0.0,
     }
-
-
-def test_query_contains_all_states():
-    assert set(qry.STATE_TEST_DATA) == EXPECTED_CODES
-    assert qry.STATE_TEST_DATA['TX']['name'] == 'Texas'
-    assert qry.STATE_TEST_DATA['AL']['capital'] == 'Montgomery'
 
 
 def test_default_path_independent_of_working_directory(tmp_path, monkeypatch):

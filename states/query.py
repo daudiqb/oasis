@@ -2,9 +2,9 @@
 
 from math import isfinite
 
-from data.db_connect import is_db_up
+from data.db_connect import needs_db
 import cities.query as cqry
-from states.load import load_states
+import data.db_connect as dbc
 
 
 STATE_CODE_LEN = 2
@@ -17,63 +17,40 @@ TEST_STATE = {
     "name": 'Test State',
 }
 
-STATE_TEST_DATA = {
-    state['state_code']: {key: value for key, value in state.items()
-                          if key != 'state_code'}
-    for state in load_states()
-}
-
-# Preserve details already available for these states; the CSV has only names.
-STATE_TEST_DATA.update({
-    "AL": {
-        "population": 4903185,
-        "capital": "Montgomery",
-        "area_sq_miles": 52420,
-        "name": 'Alabama',
-    },
-    "AK": {
-        "population": 731545,
-        "capital": "Juneau",
-        "area_sq_miles": 665384,
-        "name": 'Alaska',
-    },
-    "AZ": {
-        "population": 7278717,
-        "capital": "Phoenix",
-        "area_sq_miles": 113990,
-        "name": 'Arizona',
-    },
-})
+COLLECT = 'states'
+STATE_CODE = 'state_code'
 
 
+def _details(record):
+    """Keep storage keys out of the public state details."""
+    return {key: value for key, value in record.items()
+            if key not in {STATE_CODE, dbc.MONGO_ID}}
+
+
+@needs_db
 def read():
     """
-    Return a list of all states in the test data.
+    Return state details keyed by state code from MongoDB.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
-    return STATE_TEST_DATA
+    return {record[STATE_CODE]: _details(record)
+            for record in dbc.read(COLLECT)}
 
 
+@needs_db
 def read_one(state_code: str):
     """
     Return state details, or None if the code is missing or the DB is down.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
-    return STATE_TEST_DATA.get(state_code)
+    record = dbc.read_one(COLLECT, {STATE_CODE: state_code})
+    return None if record is None else _details(record)
 
 
+@needs_db
 def exists(state_code: str):
     """
-    Check if a state exists in the test data.
+    Check if a state exists in MongoDB.
     """
-    if not is_db_up():
-        print("Database is down.")
-        return None
-    return state_code in STATE_TEST_DATA
+    return dbc.read_one(COLLECT, {STATE_CODE: state_code}) is not None
 
 
 def check_valid_state(state_code: str, name: str, population: int = 0,
@@ -91,6 +68,7 @@ def check_valid_state(state_code: str, name: str, population: int = 0,
     return True
 
 
+@needs_db
 def create(state_code: str, name: str, population: int = 0,
            capital: str = '', area_sq_miles: float = 0.0):
     """
@@ -99,18 +77,17 @@ def create(state_code: str, name: str, population: int = 0,
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value
     check_valid_state(state_code, name, population, capital, area_sq_miles)
-    if not is_db_up():
-        print("Database is down.")
-        return None
-    STATE_TEST_DATA[state_code] = {
+    state = {
         "population": population,
         "capital": capital,
         "area_sq_miles": area_sq_miles,
         "name": name,
     }
-    return STATE_TEST_DATA[state_code]
+    dbc.create(COLLECT, {STATE_CODE: state_code, **state})
+    return state
 
 
+@needs_db
 def update(state_code: str, **changes):
     """Partially update a state without changing its code.
 
@@ -124,28 +101,28 @@ def update(state_code: str, **changes):
     if changes.keys() - allowed:
         raise ValueError('Only name, population, capital, and area_sq_miles '
                          'can be updated; state code cannot be changed.')
-    if not is_db_up():
-        return None
-    current = STATE_TEST_DATA.get(state_code)
+    current = read_one(state_code)
     if current is None:
         raise ValueError(f'State {state_code} not found.')
     updated = {**current, **changes}
     if not isinstance(updated['name'], str) or not updated['name'].strip():
         raise ValueError('State name must be a non-empty string.')
-    population = updated['population']
+    population = updated.get('population', 0)
     if (not isinstance(population, int) or isinstance(population, bool)
             or population < 0):
         raise ValueError('Population must be a non-negative integer.')
-    if not isinstance(updated['capital'], str):
+    if not isinstance(updated.get('capital', ''), str):
         raise ValueError('Capital must be a string.')
-    area = updated['area_sq_miles']
+    area = updated.get('area_sq_miles', 0.0)
     if (not isinstance(area, (int, float)) or isinstance(area, bool)
             or area < 0 or not isfinite(area)):
         raise ValueError('Area must be a finite non-negative number.')
-    STATE_TEST_DATA[state_code] = updated
+    if changes:
+        dbc.update(COLLECT, {STATE_CODE: state_code}, changes)
     return updated
 
 
+@needs_db
 def delete(state_code: str):
     """Delete a state only when it has no cities.
 
@@ -154,17 +131,14 @@ def delete(state_code: str):
     """
     if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
         raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
-    if not is_db_up():
-        return None
-    if state_code not in STATE_TEST_DATA:
+    if not exists(state_code):
         return False
     cities = cqry.read()
     if cities is None:
         return None
     if any(city[cqry.STATE_CODE] == state_code for city in cities):
         raise ValueError(f'State {state_code} still has cities.')
-    del STATE_TEST_DATA[state_code]
-    return True
+    return bool(dbc.delete(COLLECT, {STATE_CODE: state_code}))
 
 
 def main():

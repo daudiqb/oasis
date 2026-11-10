@@ -7,6 +7,33 @@ import states.query as qry
 TEST_ST = qry.TEST_STATE
 
 
+@pytest.fixture(autouse=True)
+def mock_connection(state_store):
+    with patch('data.db_connect.connect_db') as connect:
+        yield connect
+
+
+@pytest.mark.parametrize('function, args', [
+    (qry.read, ()), (qry.read_one, ('AL',)), (qry.exists, ('AL',)),
+    (qry.create, ('TS', 'Test State')), (qry.update, ('AL',)),
+    (qry.delete, ('AL',)),
+])
+def test_queries_skip_work_when_database_down(
+        function, args, mock_connection, state_store):
+    original = {code: state.copy()
+                for code, state in state_store.items()}
+    with patch('data.db_connect.is_db_up', return_value=False):
+        assert function(*args) is None
+    mock_connection.assert_not_called()
+    assert state_store == original
+
+
+def test_read_connects_through_shared_decorator(mock_connection, state_store):
+    with patch('data.db_connect.is_db_up', return_value=True):
+        assert qry.read() == state_store
+    assert mock_connection.called
+
+
 @pytest.mark.parametrize('state_code, expected', [
     ('AL', {
         'population': 4903185,
@@ -22,17 +49,17 @@ TEST_ST = qry.TEST_STATE
     }),
 ])
 def test_read_one_existing_state(state_code, expected):
-    with patch('states.query.is_db_up', return_value=True):
+    with patch('data.db_connect.is_db_up', return_value=True):
         assert qry.read_one(state_code) == expected
 
 
 def test_read_one_missing_state():
-    with patch('states.query.is_db_up', return_value=True):
+    with patch('data.db_connect.is_db_up', return_value=True):
         assert qry.read_one('ZZ') is None
 
 
 def test_read_one_database_down():
-    with patch('states.query.is_db_up', return_value=False):
+    with patch('data.db_connect.is_db_up', return_value=False):
         assert qry.read_one('AL') is None
 
 
@@ -96,19 +123,19 @@ def test_required_arguments(function, kwargs):
     ({'population': 42, 'capital': 'Test Capital', 'area_sq_miles': 12.5},
      {'population': 42, 'capital': 'Test Capital', 'area_sq_miles': 12.5}),
 ])
-def test_create_optional_fields(optional, expected):
-    with patch.dict(qry.STATE_TEST_DATA, {}, clear=True):
-        with patch('states.query.is_db_up', return_value=True):
+def test_create_optional_fields(optional, expected, state_store):
+    with patch.dict(state_store, {}, clear=True):
+        with patch('data.db_connect.is_db_up', return_value=True):
             state = qry.create('TS', 'Test State', **optional)
             assert state == {'name': 'Test State', **expected}
             assert qry.read_one('TS') == state
 
 
-def test_create_invalid_name():
-    with patch.dict(qry.STATE_TEST_DATA, {}, clear=True):
+def test_create_invalid_name(state_store):
+    with patch.dict(state_store, {}, clear=True):
         with pytest.raises(ValueError, match='State name must be'):
             qry.create('TS', '')
-        assert 'TS' not in qry.STATE_TEST_DATA
+        assert 'TS' not in state_store
 
 
 def test_query():
@@ -117,12 +144,12 @@ def test_query():
 
 
 @pytest.fixture
-def state_records():
+def state_records(state_store):
     records = {'TS': {key: value for key, value in TEST_ST.items()
                       if key != 'state_code'}}
-    with patch.dict(qry.STATE_TEST_DATA, records, clear=True):
-        with patch('states.query.is_db_up', return_value=True):
-            yield qry.STATE_TEST_DATA
+    with patch.dict(state_store, records, clear=True):
+        with patch('data.db_connect.is_db_up', return_value=True):
+            yield state_store
 
 
 @pytest.mark.parametrize('changes', [
@@ -176,7 +203,7 @@ def test_update_invalid_state_code(state_records, state_code):
 
 def test_update_database_down(state_records):
     original = state_records['TS'].copy()
-    with patch('states.query.is_db_up', return_value=False):
+    with patch('data.db_connect.is_db_up', return_value=False):
         assert qry.update('TS', name='New Name') is None
     assert state_records == {'TS': original}
 
@@ -211,7 +238,7 @@ def test_delete_invalid_state_code(state_records, state_code):
 
 
 def test_delete_database_down(state_records):
-    with patch('states.query.is_db_up', return_value=False):
+    with patch('data.db_connect.is_db_up', return_value=False):
         with patch('states.query.cqry.read') as read_cities:
             assert qry.delete('TS') is None
     read_cities.assert_not_called()
@@ -222,3 +249,6 @@ def test_delete_city_query_unavailable(state_records):
     with patch('states.query.cqry.read', return_value=None):
         assert qry.delete('TS') is None
     assert 'TS' in state_records
+
+
+pytestmark = pytest.mark.usefixtures("state_store")
