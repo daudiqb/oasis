@@ -77,6 +77,7 @@ temp_recs = {
     },
     LISTINGS: {
         CREATE: {USER_LIST: ['ejc369@nyu.edu']},
+        UPDATE: {USER_LIST: ['ejc369@nyu.edu']},
     },
     PEOPLE: {
         CREATE: {

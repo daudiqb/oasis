@@ -38,7 +38,13 @@ def fake_db(monkeypatch):
                      if all(doc.get(key) == val
                             for key, val in filt.items())), None)
 
+    def fake_update(collection, filt, changes, **kwargs):
+        for doc in store:
+            if all(doc.get(key) == val for key, val in filt.items()):
+                doc.update(changes)
+
     monkeypatch.setattr(qry.dbc, 'read_one', fake_read_one)
+    monkeypatch.setattr(qry.dbc, 'update', fake_update)
     monkeypatch.setattr(qry.dbc, 'is_db_up', lambda: True)
     monkeypatch.setattr(qry.dbc, 'connect_db', lambda: None)
     monkeypatch.setattr(qry.dbc, 'create',
@@ -99,9 +105,68 @@ def test_read_one_missing(fake_db):
     assert qry.read_one('nope') is None
 
 
+def test_update_details(fake_db):
+    listing = qry.create(*VALID)
+    updated = qry.update(listing[qry.LISTING_ID], title='Floor Lamp',
+                         price=20)
+    assert updated[qry.TITLE] == 'Floor Lamp'
+    assert updated[qry.PRICE] == 20
+    assert qry.read_one(listing[qry.LISTING_ID])[qry.TITLE] == 'Floor Lamp'
+
+
+@pytest.mark.parametrize('status', qry.STATUSES)
+def test_update_status(fake_db, status):
+    listing = qry.create(*VALID)
+    updated = qry.update(listing[qry.LISTING_ID], status=status)
+    assert updated[qry.STATUS] == status
+
+
+def test_update_leaves_omitted_fields(fake_db):
+    listing = qry.create(*VALID, description='Barely used')
+    updated = qry.update(listing[qry.LISTING_ID], price=20)
+    assert updated[qry.TITLE] == listing[qry.TITLE]
+    assert updated[qry.DESCRIPTION] == 'Barely used'
+    assert updated[qry.SELLER_ID] == listing[qry.SELLER_ID]
+
+
+def test_update_empty_returns_current(fake_db):
+    listing = qry.create(*VALID)
+    assert qry.update(listing[qry.LISTING_ID]) == listing
+
+
+@pytest.mark.parametrize('changes', [
+    {'listing_id': 'other'},
+    {'seller_id': 'someone_else'},
+    {'nonsense': 1},
+])
+def test_update_rejects_protected_fields(fake_db, changes):
+    listing = qry.create(*VALID)
+    with pytest.raises(ValueError, match='can be updated'):
+        qry.update(listing[qry.LISTING_ID], **changes)
+
+
+@pytest.mark.parametrize('changes', [
+    {'price': -1},
+    {'title': ''},
+    {'state_code': 'NYC'},
+    {'status': 'banana'},
+    {'description': 5},
+])
+def test_update_invalid_values(fake_db, changes):
+    listing = qry.create(*VALID)
+    with pytest.raises(ValueError):
+        qry.update(listing[qry.LISTING_ID], **changes)
+
+
+def test_update_not_found(fake_db):
+    with pytest.raises(ValueError, match='not found'):
+        qry.update('nope', price=1)
+
+
 @patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_db_down(mock_is_db_up):
     assert qry.create(*VALID) is None
     assert qry.read() is None
     assert qry.exists('x') is None
     assert qry.read_one('x') is None
+    assert qry.update('x', price=1) is None

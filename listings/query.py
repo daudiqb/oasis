@@ -24,6 +24,10 @@ SOLD = 'sold'
 
 STATE_CODE_LEN = 2
 
+STATUSES = (AVAILABLE, PENDING, SOLD)
+# The seller and the ID identify a listing, so they cannot be edited:
+UPDATABLE = (TITLE, DESCRIPTION, PRICE, CITY, STATE_CODE, STATUS)
+
 
 def check_valid_listing(title: str, price: float, city: str,
                         state_code: str, seller_id: str):
@@ -98,3 +102,30 @@ def read_one(listing_id: str):
     """
     listing = dbc.read_one(COLLECT, {LISTING_ID: listing_id})
     return None if listing is None else _clean(listing)
+
+
+@needs_db
+def update(listing_id: str, /, **changes):
+    """
+    Partially update a listing, keeping its ID and seller.
+    Returns the updated listing, or None if the database is down.
+    Raises ValueError for an unknown listing or an invalid field.
+    Omitted fields stay as they are.
+    """
+    if changes.keys() - set(UPDATABLE):
+        raise ValueError('Only ' + ', '.join(UPDATABLE)
+                         + ' can be updated.')
+    current = read_one(listing_id)
+    if current is None:
+        raise ValueError(f'Listing {listing_id} not found.')
+    updated = {**current, **changes}
+    check_valid_listing(updated[TITLE], updated[PRICE], updated[CITY],
+                        updated[STATE_CODE], updated[SELLER_ID])
+    if not isinstance(updated[DESCRIPTION], str):
+        raise ValueError('Description must be a string.')
+    if updated[STATUS] not in STATUSES:
+        raise ValueError('Status must be one of: '
+                         + ', '.join(STATUSES) + '.')
+    if changes:
+        dbc.update(COLLECT, {LISTING_ID: listing_id}, dict(changes))
+    return updated

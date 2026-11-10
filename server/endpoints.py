@@ -367,6 +367,16 @@ class Listings(Resource):
                 HTTPStatus.CREATED)
 
 
+LISTING_UPDATE_FLDS = api.model('UpdateListing', {
+    lqry.TITLE: fields.String(),
+    lqry.DESCRIPTION: fields.String(),
+    lqry.PRICE: fields.Float(),
+    lqry.CITY: fields.String(),
+    lqry.STATE_CODE: fields.String(),
+    lqry.STATUS: fields.String(),
+})
+
+
 @api.route(LISTING_EP)
 class Listing(Resource):
     """
@@ -388,6 +398,37 @@ class Listing(Resource):
         if listing is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {LISTING_RESP: listing}
+
+    @api.doc(params={USER_EMAIL_HEADER: {
+        'in': 'header', 'required': True, 'description': 'Acting user email',
+    }})
+    @api.expect(LISTING_UPDATE_FLDS)
+    @api.response(HTTPStatus.OK.value, 'Updated')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.LISTINGS, sec.UPDATE)
+    def patch(self, listing_id):
+        """
+        Edit a listing's details or change its status.
+        """
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise wz.BadRequest('Request body must be a JSON object.')
+        listing_exists = lqry.exists(listing_id)
+        if listing_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not listing_exists:
+            raise wz.NotFound(f'Listing {listing_id} not found.')
+        try:
+            listing = lqry.update(listing_id, **data)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if listing is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'Listing updated.', LISTING_RESP: listing}
 
 
 PURCHASE_REQUESTS_EP = '/purchase-requests'

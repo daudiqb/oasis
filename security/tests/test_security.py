@@ -47,3 +47,8 @@ def test_listing_create_permissions():
     assert sec.is_permitted(sec.LISTINGS, sec.CREATE, 'ejc369@nyu.edu')
     assert not sec.is_permitted(sec.LISTINGS, sec.CREATE, 'other@nyu.edu')
     assert not sec.is_permitted(sec.LISTINGS, sec.DELETE, 'ejc369@nyu.edu')
+
+
+def test_listing_update_permissions():
+    assert sec.is_permitted(sec.LISTINGS, sec.UPDATE, 'ejc369@nyu.edu')
+    assert not sec.is_permitted(sec.LISTINGS, sec.UPDATE, 'other@nyu.edu')
