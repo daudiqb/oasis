@@ -30,3 +30,11 @@ dev_env: FORCE
 
 docs: FORCE
 	cd $(API_DIR); make docs
+
+PYTHON ?= python3
+STATES_CSV ?= states/raw_data/states.csv
+CITIES_CSV ?= cities/raw_data/cities.csv
+
+.PHONY: load_db
+load_db:
+	CLOUD_MONGO=0 $(PYTHON) -m data.load_db --states-csv "$(STATES_CSV)" --cities-csv "$(CITIES_CSV)"
