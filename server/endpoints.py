@@ -430,6 +430,26 @@ class Listing(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         return {MESSAGE: 'Listing updated.', LISTING_RESP: listing}
 
+    @api.doc(params={USER_EMAIL_HEADER: {
+        'in': 'header', 'required': True, 'description': 'Acting user email',
+    }})
+    @api.response(HTTPStatus.OK.value, 'Deleted')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.LISTINGS, sec.DELETE)
+    def delete(self, listing_id):
+        """
+        Delete a listing when the header identifies a permitted user.
+        """
+        deleted = lqry.delete(listing_id)
+        if deleted is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not deleted:
+            raise wz.NotFound(f'Listing {listing_id} not found.')
+        return {MESSAGE: 'Listing deleted.'}
+
 
 PURCHASE_REQUESTS_EP = '/purchase-requests'
 PURCHASE_REQUEST_EP = f'{PURCHASE_REQUESTS_EP}/<request_id>'

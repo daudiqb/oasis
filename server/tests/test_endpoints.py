@@ -478,6 +478,46 @@ def test_patch_listing_db_unavailable(mock_allow, mock_exists):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+@patch('server.endpoints.lqry.delete', return_value=True, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_delete_listing(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.LISTINGS_EP}/L1', headers=LISTING_HEADERS)
+    assert resp.status_code == OK
+    mock_allow.assert_called_once_with(ep.sec.LISTINGS, ep.sec.DELETE,
+                                       'ejc369@nyu.edu')
+    mock_delete.assert_called_once_with('L1')
+
+
+@patch('server.endpoints.lqry.delete', autospec=True)
+def test_delete_listing_missing_header(mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.LISTINGS_EP}/L1')
+    assert resp.status_code == UNAUTHORIZED
+    mock_delete.assert_not_called()
+
+
+@patch('server.endpoints.lqry.delete', autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=False, autospec=True)
+def test_delete_listing_denied(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.LISTINGS_EP}/L1', headers=LISTING_HEADERS)
+    assert resp.status_code == FORBIDDEN
+    mock_delete.assert_not_called()
+
+
+@patch('server.endpoints.lqry.delete', return_value=False, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_delete_listing_not_found(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.LISTINGS_EP}/nope',
+                              headers=LISTING_HEADERS)
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('server.endpoints.lqry.delete', return_value=None, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_delete_listing_db_unavailable(mock_allow, mock_delete):
+    resp = TEST_CLIENT.delete(f'{ep.LISTINGS_EP}/L1', headers=LISTING_HEADERS)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 STATE_HEADERS = {ep.USER_EMAIL_HEADER: 'ejc369@nyu.edu'}
 
 

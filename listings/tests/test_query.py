@@ -43,7 +43,15 @@ def fake_db(monkeypatch):
             if all(doc.get(key) == val for key, val in filt.items()):
                 doc.update(changes)
 
+    def fake_delete(collection, filt, **kwargs):
+        before = len(store)
+        store[:] = [doc for doc in store
+                    if not all(doc.get(key) == val
+                               for key, val in filt.items())]
+        return before - len(store)
+
     monkeypatch.setattr(qry.dbc, 'read_one', fake_read_one)
+    monkeypatch.setattr(qry.dbc, 'delete', fake_delete)
     monkeypatch.setattr(qry.dbc, 'update', fake_update)
     monkeypatch.setattr(qry.dbc, 'is_db_up', lambda: True)
     monkeypatch.setattr(qry.dbc, 'connect_db', lambda: None)
@@ -163,6 +171,24 @@ def test_update_not_found(fake_db):
         qry.update('nope', price=1)
 
 
+def test_delete(fake_db):
+    listing = qry.create(*VALID)
+    assert qry.delete(listing[qry.LISTING_ID]) is True
+    assert fake_db == []
+    assert qry.exists(listing[qry.LISTING_ID]) is False
+
+
+def test_delete_missing(fake_db):
+    assert qry.delete('nope') is False
+
+
+def test_delete_leaves_other_listings(fake_db):
+    keep = qry.create(*VALID)
+    drop = qry.create('Mini Fridge', 40, 'Jersey City', 'NJ', 'seller2')
+    qry.delete(drop[qry.LISTING_ID])
+    assert [doc[qry.LISTING_ID] for doc in fake_db] == [keep[qry.LISTING_ID]]
+
+
 @patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_db_down(mock_is_db_up):
     assert qry.create(*VALID) is None
@@ -170,3 +196,4 @@ def test_db_down(mock_is_db_up):
     assert qry.exists('x') is None
     assert qry.read_one('x') is None
     assert qry.update('x', price=1) is None
+    assert qry.delete('x') is None

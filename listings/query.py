@@ -129,3 +129,12 @@ def update(listing_id: str, /, **changes):
     if changes:
         dbc.update(COLLECT, {LISTING_ID: listing_id}, dict(changes))
     return updated
+
+
+@needs_db
+def delete(listing_id: str):
+    """
+    Delete a listing. Returns True if it was deleted, False if there
+    was no such listing, or None if the database is down.
+    """
+    return bool(dbc.delete(COLLECT, {LISTING_ID: listing_id}))
