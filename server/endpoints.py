@@ -10,6 +10,8 @@ from flask_cors import CORS
 
 import werkzeug.exceptions as wz
 
+from server.permissions import USER_EMAIL_HEADER, needs_permission
+
 import security.security as sec
 import states.query as sqry
 import cities.query as cqry
@@ -37,7 +39,6 @@ LISTINGS_RESP = 'Listings'
 LISTING_EP = f'{LISTINGS_EP}/<listing_id>'
 LISTING_RESP = 'Listing'
 MESSAGE = 'Message'
-USER_EMAIL_HEADER = 'X-User-Email'
 
 STATE_CREATE_FLDS = api.model('CreateState', {
     'state_code': fields.String(required=True),
@@ -108,13 +109,9 @@ class States(Resource):
     @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
     @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.STATES, sec.CREATE)
     def post(self):
         """Create a state when the header identifies a permitted user."""
-        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
-        if not user_email:
-            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
-        if not sec.is_permitted(sec.STATES, sec.CREATE, user_email):
-            raise wz.Forbidden('Not permitted to create states.')
         data = request.get_json(silent=True)
         if not isinstance(data, dict):
             raise wz.BadRequest('Request body must be a JSON object.')
@@ -161,13 +158,9 @@ class State(Resource):
     @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.STATES, sec.UPDATE)
     def put(self, state_code):
         """Partially update a state, preserving its code and omitted fields."""
-        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
-        if not user_email:
-            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
-        if not sec.is_permitted(sec.STATES, sec.UPDATE, user_email):
-            raise wz.Forbidden('Not permitted to update states.')
         data = request.get_json(silent=True)
         if not isinstance(data, dict):
             raise wz.BadRequest('Request body must be a JSON object.')
@@ -195,13 +188,9 @@ class State(Resource):
     @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.STATES, sec.DELETE)
     def delete(self, state_code):
         """Delete a state when permitted and no cities reference it."""
-        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
-        if not user_email:
-            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
-        if not sec.is_permitted(sec.STATES, sec.DELETE, user_email):
-            raise wz.Forbidden('Not permitted to delete states.')
         try:
             deleted = sqry.delete(state_code)
         except ValueError as err:
