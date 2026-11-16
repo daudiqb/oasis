@@ -57,6 +57,17 @@ Cities CSV columns are `name,state_code,latitude,longitude`; each city must
 reference a state in the states CSV. Existing city identity is name plus state
 code. You can also override `STATES_CSV` (columns `Abbrev,State`) and `PYTHON`.
 
+### Loading demo marketplace data
+After `make load_db`, add sample listings and purchase requests for a demo:
+
+```bash
+make seed_demo
+```
+
+It inserts 4 listings and 5 purchase requests in different states (pending,
+accepted, rejected, cancelled) and skips any that already exist, so it is safe
+to run again.
+
 ### Running the frontend
 ```bash
 cd frontend

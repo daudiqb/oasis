@@ -38,3 +38,7 @@ CITIES_CSV ?= cities/raw_data/cities.csv
 .PHONY: load_db
 load_db:
 	CLOUD_MONGO=0 $(PYTHON) -m data.load_db --states-csv "$(STATES_CSV)" --cities-csv "$(CITIES_CSV)"
+
+.PHONY: seed_demo
+seed_demo:
+	CLOUD_MONGO=0 $(PYTHON) -m data.seed_demo
