@@ -118,3 +118,20 @@ def test_read_one_not_found(fake_db):
 @patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_read_one_db_down(mock_is_db_up):
     assert qry.read_one('x') is None
+
+
+def test_read_by_listing(fake_db):
+    qry.create('L1', 'buyer1', 'seller1')
+    qry.create('L1', 'buyer2', 'seller1')
+    qry.create('L2', 'buyer1', 'seller1')
+    assert len(qry.read(listing_id='L1')) == 2
+    assert len(qry.read(listing_id='L2')) == 1
+    assert qry.read(listing_id='L9') == []
+
+
+def test_read_by_listing_and_status(fake_db):
+    first = qry.create('L1', 'buyer1', 'seller1')
+    qry.create('L1', 'buyer2', 'seller1')
+    qry.update_status(first[qry.REQUEST_ID], qry.ACCEPTED)
+    pending = qry.read(listing_id='L1', status=qry.PENDING)
+    assert [req[qry.BUYER_ID] for req in pending] == ['buyer2']

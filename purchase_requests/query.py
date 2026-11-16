@@ -58,13 +58,16 @@ def create(listing_id: str, buyer_id: str, seller_id: str,
 
 
 @needs_db
-def read(buyer_id: str = None, seller_id: str = None, status: str = None):
+def read(buyer_id: str = None, seller_id: str = None, status: str = None,
+         listing_id: str = None):
     """
     Return a list of purchase requests. With no arguments, return all.
     buyer_id gives a buyer's outgoing requests, seller_id a seller's
-    incoming ones, and status narrows either by status.
+    incoming ones, listing_id the requests for one listing, and status
+    narrows any of them by status.
     """
-    filters = {BUYER_ID: buyer_id, SELLER_ID: seller_id, STATUS: status}
+    filters = {BUYER_ID: buyer_id, SELLER_ID: seller_id, STATUS: status,
+               LISTING_ID: listing_id}
     filters = {key: val for key, val in filters.items() if val}
     return [req for req in dbc.read(COLLECT)
             if all(req.get(key) == val for key, val in filters.items())]
