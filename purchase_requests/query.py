@@ -44,6 +44,12 @@ def create(listing_id: str, buyer_id: str, seller_id: str,
             raise ValueError(f'{name} is required.')
     if buyer_id == seller_id:
         raise ValueError('You cannot request your own listing.')
+    for req in dbc.read(COLLECT):
+        if (req.get(LISTING_ID) == listing_id
+                and req.get(BUYER_ID) == buyer_id
+                and req.get(STATUS) == PENDING):
+            raise ValueError('You already have a pending request '
+                             + 'for this listing.')
     request = {
         REQUEST_ID: uuid.uuid4().hex,
         LISTING_ID: listing_id,

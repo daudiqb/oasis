@@ -135,3 +135,23 @@ def test_read_by_listing_and_status(fake_db):
     qry.update_status(first[qry.REQUEST_ID], qry.ACCEPTED)
     pending = qry.read(listing_id='L1', status=qry.PENDING)
     assert [req[qry.BUYER_ID] for req in pending] == ['buyer2']
+
+
+def test_create_duplicate_pending(fake_db):
+    qry.create('L1', 'buyer1', 'seller1')
+    with pytest.raises(ValueError, match='already have a pending'):
+        qry.create('L1', 'buyer1', 'seller1')
+    assert len(fake_db) == 1
+
+
+def test_create_same_listing_other_buyer(fake_db):
+    qry.create('L1', 'buyer1', 'seller1')
+    qry.create('L1', 'buyer2', 'seller1')
+    assert len(fake_db) == 2
+
+
+def test_create_again_after_cancel(fake_db):
+    first = qry.create('L1', 'buyer1', 'seller1')
+    qry.update_status(first[qry.REQUEST_ID], qry.CANCELLED)
+    qry.create('L1', 'buyer1', 'seller1')
+    assert len(fake_db) == 2
