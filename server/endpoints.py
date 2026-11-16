@@ -496,12 +496,20 @@ class PurchaseRequests(Resource):
     @api.expect(PURCHASE_REQUEST_CREATE_FLDS)
     @api.response(HTTPStatus.CREATED.value, 'Created')
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Listing Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def post(self):
         """
-        Send a request to buy a listing.
+        Send a request to buy a listing. The listing must exist.
         """
         data = request.get_json(silent=True) or {}
+        listing_id = data.get(prqry.LISTING_ID)
+        if listing_id:
+            listing_exists = lqry.exists(listing_id)
+            if listing_exists is None:
+                raise wz.ServiceUnavailable('Database may be down.')
+            if not listing_exists:
+                raise wz.NotFound(f'Listing {listing_id} not found.')
         try:
             new_request = prqry.create(data.get(prqry.LISTING_ID),
                                        data.get(prqry.BUYER_ID),

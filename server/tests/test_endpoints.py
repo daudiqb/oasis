@@ -167,8 +167,9 @@ def test_get_purchase_requests_db_unavailable(mock_read):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+@patch('server.endpoints.lqry.exists', return_value=True, autospec=True)
 @patch('server.endpoints.prqry.create', return_value=FAKE_PR, autospec=True)
-def test_post_purchase_request(mock_create):
+def test_post_purchase_request(mock_create, mock_listing_exists):
     body = {'listing_id': 'L1', 'buyer_id': 'b1', 'seller_id': 's1'}
     resp = TEST_CLIENT.post(ep.PURCHASE_REQUESTS_EP, json=body)
     assert resp.status_code == CREATED
@@ -754,3 +755,20 @@ def test_get_purchase_requests_by_listing(mock_read):
     assert resp.get_json()[ep.PURCHASE_REQUESTS_RESP] == [FAKE_PR]
     mock_read.assert_called_once_with(buyer_id=None, seller_id=None,
                                       status='pending', listing_id='L1')
+
+
+@patch('server.endpoints.prqry.create', return_value=FAKE_PR, autospec=True)
+@patch('server.endpoints.lqry.exists', return_value=False, autospec=True)
+def test_post_purchase_request_listing_not_found(mock_listing_exists,
+                                                 mock_create):
+    body = {'listing_id': 'nope', 'buyer_id': 'b1', 'seller_id': 's1'}
+    resp = TEST_CLIENT.post(ep.PURCHASE_REQUESTS_EP, json=body)
+    assert resp.status_code == NOT_FOUND
+    mock_create.assert_not_called()
+
+
+@patch('server.endpoints.lqry.exists', return_value=None, autospec=True)
+def test_post_purchase_request_listing_db_unavailable(mock_listing_exists):
+    body = {'listing_id': 'L1', 'buyer_id': 'b1', 'seller_id': 's1'}
+    resp = TEST_CLIENT.post(ep.PURCHASE_REQUESTS_EP, json=body)
+    assert resp.status_code == SERVICE_UNAVAILABLE
