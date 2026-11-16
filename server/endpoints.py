@@ -564,5 +564,10 @@ class PurchaseRequest(Resource):
             raise wz.BadRequest(str(err))
         if updated is None:
             raise wz.ServiceUnavailable('Database may be down.')
+        if updated[prqry.STATUS] == prqry.ACCEPTED:
+            try:
+                lqry.update(updated[prqry.LISTING_ID], status=lqry.SOLD)
+            except ValueError:
+                pass  # The listing was removed; the request stays accepted.
         return {MESSAGE: 'Purchase request updated.',
                 PURCHASE_REQUEST_RESP: updated}

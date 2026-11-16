@@ -14,7 +14,7 @@ Full Swagger docs are at http://127.0.0.1:8000/ while the server is running.
 | POST   | /purchase-requests | Send a request to buy an existing listing (404 if the listing is missing) |
 | GET    | /purchase-requests | List requests (?buyer_id=, ?seller_id=, ?listing_id=, ?status=) |
 | GET    | /purchase-requests/{request_id} | Get one purchase request |
-| PATCH  | /purchase-requests/{request_id} | Accept, reject, or cancel a pending request |
+| PATCH  | /purchase-requests/{request_id} | Accept, reject, or cancel a pending request (accepting marks the listing sold) |
 
 ## Planned
 - Cities: get one, create, update, delete

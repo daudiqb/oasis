@@ -189,10 +189,11 @@ def test_post_purchase_request_db_unavailable(mock_create):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+@patch('server.endpoints.lqry.update', autospec=True)
 @patch('server.endpoints.prqry.update_status',
        return_value={**FAKE_PR, 'status': 'accepted'}, autospec=True)
 @patch('server.endpoints.prqry.exists', return_value=True, autospec=True)
-def test_patch_purchase_request(mock_exists, mock_update):
+def test_patch_purchase_request(mock_exists, mock_update, mock_listing_update):
     resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
                              json={'status': 'accepted'})
     assert resp.status_code == OK
@@ -772,3 +773,40 @@ def test_post_purchase_request_listing_db_unavailable(mock_listing_exists):
     body = {'listing_id': 'L1', 'buyer_id': 'b1', 'seller_id': 's1'}
     resp = TEST_CLIENT.post(ep.PURCHASE_REQUESTS_EP, json=body)
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('server.endpoints.lqry.update', autospec=True)
+@patch('server.endpoints.prqry.update_status',
+       return_value={**FAKE_PR, 'status': 'accepted'}, autospec=True)
+@patch('server.endpoints.prqry.exists', return_value=True, autospec=True)
+def test_accepting_marks_listing_sold(mock_exists, mock_update,
+                                      mock_listing_update):
+    resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
+                             json={'status': 'accepted'})
+    assert resp.status_code == OK
+    mock_listing_update.assert_called_once_with('L1', status='sold')
+
+
+@patch('server.endpoints.lqry.update', autospec=True)
+@patch('server.endpoints.prqry.update_status',
+       return_value={**FAKE_PR, 'status': 'rejected'}, autospec=True)
+@patch('server.endpoints.prqry.exists', return_value=True, autospec=True)
+def test_rejecting_leaves_listing_alone(mock_exists, mock_update,
+                                        mock_listing_update):
+    resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
+                             json={'status': 'rejected'})
+    assert resp.status_code == OK
+    mock_listing_update.assert_not_called()
+
+
+@patch('server.endpoints.lqry.update', side_effect=ValueError('gone'),
+       autospec=True)
+@patch('server.endpoints.prqry.update_status',
+       return_value={**FAKE_PR, 'status': 'accepted'}, autospec=True)
+@patch('server.endpoints.prqry.exists', return_value=True, autospec=True)
+def test_accepting_when_listing_removed(mock_exists, mock_update,
+                                        mock_listing_update):
+    resp = TEST_CLIENT.patch(f'{ep.PURCHASE_REQUESTS_EP}/abc',
+                             json={'status': 'accepted'})
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.PURCHASE_REQUEST_RESP]['status'] == 'accepted'
