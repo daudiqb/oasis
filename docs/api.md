@@ -12,7 +12,7 @@ Full Swagger docs are at http://127.0.0.1:8000/ while the server is running.
 | PUT    | /states/{state_code} | Partially update a state (requires permission) |
 | GET    | /cities    | List all cities |
 | POST   | /purchase-requests | Send a request to buy a listing |
-| GET    | /purchase-requests | List requests (?buyer_id=, ?seller_id=, ?status=) |
+| GET    | /purchase-requests | List requests (?buyer_id=, ?seller_id=, ?listing_id=, ?status=) |
 | GET    | /purchase-requests/{request_id} | Get one purchase request |
 | PATCH  | /purchase-requests/{request_id} | Accept, reject, or cancel a pending request |
 

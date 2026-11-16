@@ -158,7 +158,7 @@ def test_get_purchase_requests(mock_read):
     assert resp.status_code == OK
     assert resp.get_json()[ep.PURCHASE_REQUESTS_RESP] == [FAKE_PR]
     mock_read.assert_called_once_with(buyer_id='b1', seller_id=None,
-                                      status=None)
+                                      status=None, listing_id=None)
 
 
 @patch('server.endpoints.prqry.read', return_value=None, autospec=True)
@@ -744,3 +744,13 @@ def test_delete_state_city_query_unavailable(mock_read, state_store):
 
 
 pytestmark = pytest.mark.usefixtures("state_store")
+
+
+@patch('server.endpoints.prqry.read', return_value=[FAKE_PR], autospec=True)
+def test_get_purchase_requests_by_listing(mock_read):
+    resp = TEST_CLIENT.get(
+        f'{ep.PURCHASE_REQUESTS_EP}?listing_id=L1&status=pending')
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.PURCHASE_REQUESTS_RESP] == [FAKE_PR]
+    mock_read.assert_called_once_with(buyer_id=None, seller_id=None,
+                                      status='pending', listing_id='L1')

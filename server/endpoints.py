@@ -475,17 +475,20 @@ class PurchaseRequests(Resource):
     """
     @api.doc(params={prqry.BUYER_ID: 'Outgoing requests of this buyer',
                      prqry.SELLER_ID: 'Incoming requests of this seller',
+                     prqry.LISTING_ID: 'Requests for this listing',
                      prqry.STATUS: 'Only requests with this status'})
     @api.response(HTTPStatus.OK.value, 'Success')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
         Return purchase requests. Use buyer_id for a buyer's outgoing
-        requests and seller_id for a seller's incoming ones.
+        requests, seller_id for a seller's incoming ones, and listing_id
+        for the requests on one listing.
         """
         requests = prqry.read(buyer_id=request.args.get(prqry.BUYER_ID),
                               seller_id=request.args.get(prqry.SELLER_ID),
-                              status=request.args.get(prqry.STATUS))
+                              status=request.args.get(prqry.STATUS),
+                              listing_id=request.args.get(prqry.LISTING_ID))
         if requests is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {PURCHASE_REQUESTS_RESP: requests}
