@@ -235,15 +235,11 @@ class Cities(Resource):
     @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
     @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.CITIES, sec.CREATE)
     def post(self):
         """
         Create a city when the header identifies a permitted user.
         """
-        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
-        if not user_email:
-            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
-        if not sec.is_permitted(sec.CITIES, sec.CREATE, user_email):
-            raise wz.Forbidden('Not permitted to create cities.')
         data = request.get_json(silent=True)
         if not isinstance(data, dict):
             raise wz.BadRequest('Request body must be a JSON object.')
@@ -289,15 +285,11 @@ class City(Resource):
     @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.CITIES, sec.DELETE)
     def delete(self, state_code, name):
         """
         Delete a city when the header identifies a permitted user.
         """
-        user_email = request.headers.get(USER_EMAIL_HEADER, '').strip()
-        if not user_email:
-            raise wz.Unauthorized(f'{USER_EMAIL_HEADER} header is required.')
-        if not sec.is_permitted(sec.CITIES, sec.DELETE, user_email):
-            raise wz.Forbidden('Not permitted to delete cities.')
         deleted = cqry.delete(name, state_code)
         if deleted is None:
             raise wz.ServiceUnavailable('Database may be down.')
