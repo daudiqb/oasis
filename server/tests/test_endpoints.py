@@ -810,3 +810,20 @@ def test_accepting_when_listing_removed(mock_exists, mock_update,
                              json={'status': 'accepted'})
     assert resp.status_code == OK
     assert resp.get_json()[ep.PURCHASE_REQUEST_RESP]['status'] == 'accepted'
+
+
+def test_get_state_fields_without_database():
+    with patch('server.endpoints.sqry.read') as read_states, \
+            patch('data.db_connect.is_db_up', return_value=False), \
+            patch('data.db_connect.connect_db') as connect:
+        resp = TEST_CLIENT.get(ep.STATE_FIELDS_EP)
+    assert resp.status_code == OK
+    assert resp.get_json() == {ep.STATE_FIELDS_RESP: ep.sflds.get_flds()}
+    read_states.assert_not_called()
+    connect.assert_not_called()
+
+
+def test_state_fields_route_is_documented():
+    resp = TEST_CLIENT.get('/swagger.json')
+    assert resp.status_code == OK
+    assert 'get' in resp.get_json()['paths'][ep.STATE_FIELDS_EP]

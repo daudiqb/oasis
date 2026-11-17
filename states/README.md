@@ -37,3 +37,13 @@ writes from another process do not automatically refresh it.
 
 Run `python -m states.load` to print normalized CSV records, or use
 `make load_db` from the repository root to persist the bundled data.
+
+`states/fields.py` describes the public state fields with display names, JSON
+value types, required-on-create flags, descriptions, and optional defaults.
+`get_flds()` returns a copy; `get_fld_names()` lists the fields and
+`get_disp_name(name)` looks up a label (unknown names raise `KeyError`).
+
+`GET /states/fields` returns `{"Fields": {...}}` with this dictionary. It is
+public, requires no database connection, and takes precedence over the
+`/states/<state_code>` route. Required flags describe creation; updates remain
+partial, and `state_code` cannot be changed. MongoDB's `_id` is excluded.

@@ -14,6 +14,7 @@ from server.permissions import USER_EMAIL_HEADER, needs_permission
 
 import security.security as sec
 import states.query as sqry
+import states.fields as sflds
 import cities.query as cqry
 import purchase_requests.query as prqry
 import listings.query as lqry
@@ -30,6 +31,8 @@ STATES_EP = '/states'
 STATES_RESP = 'States:'
 STATE_EP = f'{STATES_EP}/<state_code>'
 STATE_RESP = 'State'
+STATE_FIELDS_EP = f'{STATES_EP}/fields'
+STATE_FIELDS_RESP = 'Fields'
 CITIES_EP = '/cities'
 CITIES_RESP = 'Cities'
 CITY_EP = f'{CITIES_EP}/<state_code>/<name>'
@@ -127,6 +130,16 @@ class States(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         return ({MESSAGE: 'State created.', STATE_RESP: state},
                 HTTPStatus.CREATED)
+
+
+@api.route(STATE_FIELDS_EP)
+class StateFields(Resource):
+    """Describe the public fields of a state record."""
+
+    @api.response(HTTPStatus.OK.value, 'Success')
+    def get(self):
+        """Return state field metadata without requiring a database."""
+        return {STATE_FIELDS_RESP: sflds.get_flds()}
 
 
 @api.route(STATE_EP)
