@@ -132,3 +132,41 @@ def test_read_one_missing_city():
 def test_read_one_db_down(mock_is_db_up):
     assert qry.read_one(TEST_CITY[qry.NAME],
                         TEST_CITY[qry.STATE_CODE]) is None
+
+
+def test_update(temp_city):
+    updated = qry.update(temp_city[qry.NAME], temp_city[qry.STATE_CODE],
+                         latitude=41.0)
+    assert updated[qry.LATITUDE] == 41.0
+    assert updated[qry.LONGITUDE] == temp_city[qry.LONGITUDE]
+    assert qry.read_one(temp_city[qry.NAME],
+                        temp_city[qry.STATE_CODE]) == updated
+
+
+def test_update_no_changes(temp_city):
+    assert qry.update(temp_city[qry.NAME],
+                      temp_city[qry.STATE_CODE]) == temp_city
+
+
+@pytest.mark.parametrize('changes', [
+    {qry.NAME: 'New Name'},
+    {qry.STATE_CODE: 'NJ'},
+    {qry.LATITUDE: qry.MAX_LATITUDE + 1},
+    {qry.LONGITUDE: 'west'},
+])
+def test_update_invalid(temp_city, changes):
+    with pytest.raises(ValueError):
+        qry.update(temp_city[qry.NAME], temp_city[qry.STATE_CODE], **changes)
+    assert qry.read_one(temp_city[qry.NAME],
+                        temp_city[qry.STATE_CODE]) == temp_city
+
+
+def test_update_missing_city():
+    with pytest.raises(ValueError):
+        qry.update('No Such City', 'ZZ', latitude=41.0)
+
+
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
+def test_update_db_down(mock_is_db_up):
+    assert qry.update(TEST_CITY[qry.NAME], TEST_CITY[qry.STATE_CODE],
+                      latitude=41.0) is None

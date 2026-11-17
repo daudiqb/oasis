@@ -17,6 +17,7 @@ MIN_LATITUDE = -90
 MAX_LATITUDE = 90
 MIN_LONGITUDE = -180
 MAX_LONGITUDE = 180
+UPDATABLE_FIELDS = {LATITUDE, LONGITUDE}
 
 TEST_CITY = {
     NAME: 'Test City',
@@ -76,6 +77,26 @@ def create(name: str, state_code: str, latitude: float, longitude: float):
     if dbc.create(CITIES_COLLECT, dict(city)) is None:
         return None
     return city
+
+
+@needs_db
+def update(name: str, state_code: str, /, **changes):
+    """
+    Change a city's latitude and/or longitude; omitted fields stay the same.
+    Name and state code identify the city, so they cannot be changed.
+    Returns the updated city, or None if the database is down.
+    Raises ValueError for a missing city or invalid fields.
+    """
+    if changes.keys() - UPDATABLE_FIELDS:
+        raise ValueError('Only latitude and longitude can be updated.')
+    current = read_one(name, state_code)
+    if current is None:
+        raise ValueError(f'City {name}, {state_code} not found.')
+    updated = {**current, **changes}
+    check_valid_city(**updated)
+    if changes:
+        dbc.update(CITIES_COLLECT, city_filter(name, state_code), changes)
+    return updated
 
 
 @needs_db
