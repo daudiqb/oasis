@@ -25,7 +25,15 @@ capital, and area values. DC and Puerto Rico are excluded because they are not
 states. Missing columns, invalid records, and duplicate codes raise errors.
 An optional file path supports other CSV files with the same columns.
 
-The query module initializes its state records from this loader, preserving
-previously available details for Alabama, Alaska, and Arizona. Run
-`python -m states.load` to print the normalized records, or append a CSV path.
-The current query storage is in memory; loading does not persist to MongoDB.
+State queries persist through `data.db_connect` in MongoDB. `read()`,
+`read_one()`, and `exists()` share a lazy, per-process RAM cache. Successful
+creates, updates, and deletes clear the cache; the next read reloads MongoDB.
+Returned dictionaries are copies, so callers cannot modify cached records.
+`@needs_db` still returns `None` when the database is reported down.
+
+Call `states.query.clear_cache()` after writes made outside the query module,
+or restart the API after `make load_db`. Each server process has its own cache;
+writes from another process do not automatically refresh it.
+
+Run `python -m states.load` to print normalized CSV records, or use
+`make load_db` from the repository root to persist the bundled data.

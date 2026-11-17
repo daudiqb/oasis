@@ -5,6 +5,14 @@ from unittest.mock import patch
 import pytest
 
 import data.db_connect as dbc
+import states.query as sqry
+
+
+@pytest.fixture(autouse=True)
+def reset_states_cache():
+    sqry.clear_cache()
+    yield
+    sqry.clear_cache()
 
 
 @pytest.fixture
@@ -34,10 +42,12 @@ def state_store():
         code = stored.pop('state_code')
         records[code] = deepcopy(stored)
         doc['_id'] = 'mongo-id'
+        return object()
 
     def update(collection, filt, changes):
         assert collection == 'states'
         records[filt['state_code']].update(deepcopy(changes))
+        return object()
 
     def delete(collection, filt):
         assert collection == 'states'

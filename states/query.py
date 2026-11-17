@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from copy import deepcopy
 from math import isfinite
 
 from data.db_connect import needs_db
@@ -20,6 +21,15 @@ TEST_STATE = {
 COLLECT = 'states'
 STATE_CODE = 'state_code'
 
+# None means not loaded; an empty dictionary is a cached empty collection.
+_states_cache = None
+
+
+def clear_cache():
+    """Reload states from MongoDB on the next read in this process."""
+    global _states_cache
+    _states_cache = None
+
 
 def _details(record):
     """Keep storage keys out of the public state details."""
@@ -30,10 +40,16 @@ def _details(record):
 @needs_db
 def read():
     """
-    Return state details keyed by state code from MongoDB.
+    Return a copy of state details, loading the RAM cache when needed.
     """
-    return {record[STATE_CODE]: _details(record)
-            for record in dbc.read(COLLECT)}
+    global _states_cache
+    if _states_cache is None:
+        records = dbc.read(COLLECT)
+        if records is None:
+            return None
+        _states_cache = {record[STATE_CODE]: _details(record)
+                         for record in records}
+    return deepcopy(_states_cache)
 
 
 @needs_db
@@ -41,8 +57,8 @@ def read_one(state_code: str):
     """
     Return state details, or None if the code is missing or the DB is down.
     """
-    record = dbc.read_one(COLLECT, {STATE_CODE: state_code})
-    return None if record is None else _details(record)
+    states = read()
+    return None if states is None else states.get(state_code)
 
 
 @needs_db
@@ -50,7 +66,8 @@ def exists(state_code: str):
     """
     Check if a state exists in MongoDB.
     """
-    return dbc.read_one(COLLECT, {STATE_CODE: state_code}) is not None
+    states = read()
+    return None if states is None else state_code in states
 
 
 def check_valid_state(state_code: str, name: str, population: int = 0,
@@ -83,7 +100,9 @@ def create(state_code: str, name: str, population: int = 0,
         "area_sq_miles": area_sq_miles,
         "name": name,
     }
-    dbc.create(COLLECT, {STATE_CODE: state_code, **state})
+    if dbc.create(COLLECT, {STATE_CODE: state_code, **state}) is None:
+        return None
+    clear_cache()
     return state
 
 
@@ -118,7 +137,9 @@ def update(state_code: str, **changes):
             or area < 0 or not isfinite(area)):
         raise ValueError('Area must be a finite non-negative number.')
     if changes:
-        dbc.update(COLLECT, {STATE_CODE: state_code}, changes)
+        if dbc.update(COLLECT, {STATE_CODE: state_code}, changes) is None:
+            return None
+        clear_cache()
     return updated
 
 
@@ -138,7 +159,12 @@ def delete(state_code: str):
         return None
     if any(city[cqry.STATE_CODE] == state_code for city in cities):
         raise ValueError(f'State {state_code} still has cities.')
-    return bool(dbc.delete(COLLECT, {STATE_CODE: state_code}))
+    deleted = dbc.delete(COLLECT, {STATE_CODE: state_code})
+    if deleted is None:
+        return None
+    if deleted:
+        clear_cache()
+    return bool(deleted)
 
 
 def main():
