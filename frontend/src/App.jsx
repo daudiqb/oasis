@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { getListings } from './api'
 import CreateListingForm from './CreateListingForm'
 
-const CATEGORIES = ['books', 'electronics', 'furniture', 'clothing', 'home', 'other']
 const STATUSES = ['available', 'pending', 'sold']
 
 function formatPrice(price) {
@@ -20,8 +19,10 @@ function ListingCard({ listing }) {
       <p className="listing-price">{formatPrice(listing.price)}</p>
       {listing.description && <p className="listing-description">{listing.description}</p>}
       <div className="listing-meta">
-        {listing.category && <span className="tag">{listing.category}</span>}
-        {listing.item_condition && <span className="tag">{listing.item_condition}</span>}
+        <span className="tag">
+          {listing.city}, {listing.state_code}
+        </span>
+        <span className="tag">{listing.seller_id}</span>
       </div>
     </li>
   )
@@ -30,7 +31,7 @@ function ListingCard({ listing }) {
 function App() {
   const [listings, setListings] = useState([])
   const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('')
+  const [stateCode, setStateCode] = useState('')
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -38,10 +39,8 @@ function App() {
 
   useEffect(() => {
     let active = true
-    setLoading(true)
-    setError(null)
 
-    getListings({ search, category, status })
+    getListings()
       .then((data) => {
         if (active) setListings(data)
       })
@@ -55,7 +54,20 @@ function App() {
     return () => {
       active = false
     }
-  }, [search, category, status])
+  }, [])
+
+  const stateCodes = useMemo(
+    () => [...new Set(listings.map((listing) => listing.state_code))].sort(),
+    [listings],
+  )
+
+  // Filtering stays in the browser until GET /listings takes query params.
+  const visible = listings.filter(
+    (listing) =>
+      listing.title.toLowerCase().includes(search.trim().toLowerCase()) &&
+      (!stateCode || listing.state_code === stateCode) &&
+      (!status || listing.status === status),
+  )
 
   return (
     <>
@@ -87,11 +99,11 @@ function App() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="">All categories</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
+        <select value={stateCode} onChange={(e) => setStateCode(e.target.value)}>
+          <option value="">All states</option>
+          {stateCodes.map((code) => (
+            <option key={code} value={code}>
+              {code}
             </option>
           ))}
         </select>
@@ -108,13 +120,13 @@ function App() {
       <section className="listings-section">
         {loading && <p className="state-message">Loading listings…</p>}
         {error && <p className="state-message state-error">Couldn't load listings: {error}</p>}
-        {!loading && !error && listings.length === 0 && (
+        {!loading && !error && visible.length === 0 && (
           <p className="state-message">No listings match your search.</p>
         )}
-        {!loading && !error && listings.length > 0 && (
+        {!loading && !error && visible.length > 0 && (
           <ul className="listings-grid">
-            {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
+            {visible.map((listing) => (
+              <ListingCard key={listing.listing_id} listing={listing} />
             ))}
           </ul>
         )}
