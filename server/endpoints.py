@@ -223,6 +223,12 @@ CITY_CREATE_FLDS = api.model('CreateCity', {
 })
 
 
+CITY_UPDATE_FLDS = api.model('UpdateCity', {
+    cqry.LATITUDE: fields.Float(),
+    cqry.LONGITUDE: fields.Float(),
+})
+
+
 @api.route(CITIES_EP)
 class Cities(Resource):
     """
@@ -271,7 +277,7 @@ class Cities(Resource):
 @api.route(CITY_EP)
 class City(Resource):
     """
-    Read or delete a single city by its state code and name.
+    Read, update or delete a single city by its state code and name.
     """
     @api.response(HTTPStatus.OK.value, 'Success')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
@@ -289,6 +295,37 @@ class City(Resource):
         if city is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {CITY_RESP: city}
+
+    @api.doc(params={USER_EMAIL_HEADER: {
+        'in': 'header', 'required': True, 'description': 'Acting user email',
+    }})
+    @api.expect(CITY_UPDATE_FLDS)
+    @api.response(HTTPStatus.OK.value, 'Updated')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
+    @api.response(HTTPStatus.UNAUTHORIZED.value, 'Missing user email')
+    @api.response(HTTPStatus.FORBIDDEN.value, 'Permission denied')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @needs_permission(sec.CITIES, sec.UPDATE)
+    def put(self, state_code, name):
+        """
+        Change a city's latitude or longitude; omitted fields stay the same.
+        """
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise wz.BadRequest('Request body must be a JSON object.')
+        city_exists = cqry.exists(name, state_code)
+        if city_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not city_exists:
+            raise wz.NotFound(f'City {name}, {state_code} not found.')
+        try:
+            city = cqry.update(name, state_code, **data)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if city is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {MESSAGE: 'City updated.', CITY_RESP: city}
 
     @api.doc(params={USER_EMAIL_HEADER: {
         'in': 'header', 'required': True, 'description': 'Acting user email',

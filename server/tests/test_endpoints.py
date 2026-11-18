@@ -299,6 +299,85 @@ def test_delete_city_db_unavailable(mock_allow, mock_delete):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+BROOKLYN_URL = f'{ep.CITIES_EP}/NY/Brooklyn'
+UPDATED_BROOKLYN = {'name': 'Brooklyn', 'state_code': 'NY',
+                    'latitude': 41.0, 'longitude': -73.9442}
+
+
+@patch('server.endpoints.cqry.update', return_value=UPDATED_BROOKLYN,
+       autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=True, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_put_city(mock_allow, mock_exists, mock_update):
+    resp = TEST_CLIENT.put(BROOKLYN_URL, headers=CITY_HEADERS,
+                           json={'latitude': 41.0})
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.CITY_RESP] == UPDATED_BROOKLYN
+    mock_allow.assert_called_once_with(ep.sec.CITIES, ep.sec.UPDATE,
+                                       'ejc369@nyu.edu')
+    mock_update.assert_called_once_with('Brooklyn', 'NY', latitude=41.0)
+
+
+@patch('server.endpoints.cqry.update', autospec=True)
+def test_put_city_missing_header(mock_update):
+    resp = TEST_CLIENT.put(BROOKLYN_URL, json={'latitude': 41.0})
+    assert resp.status_code == UNAUTHORIZED
+    mock_update.assert_not_called()
+
+
+@patch('server.endpoints.cqry.update', autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=False, autospec=True)
+def test_put_city_denied(mock_allow, mock_update):
+    resp = TEST_CLIENT.put(BROOKLYN_URL, headers=CITY_HEADERS,
+                           json={'latitude': 41.0})
+    assert resp.status_code == FORBIDDEN
+    mock_update.assert_not_called()
+
+
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_put_city_not_json(mock_allow):
+    resp = TEST_CLIENT.put(BROOKLYN_URL, headers=CITY_HEADERS, json=[])
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.cqry.update', autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=False, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_put_city_not_found(mock_allow, mock_exists, mock_update):
+    resp = TEST_CLIENT.put(f'{ep.CITIES_EP}/NY/Nowhere',
+                           headers=CITY_HEADERS, json={'latitude': 41.0})
+    assert resp.status_code == NOT_FOUND
+    mock_update.assert_not_called()
+
+
+@patch('server.endpoints.cqry.update', side_effect=ValueError('bad city'),
+       autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=True, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_put_city_invalid(mock_allow, mock_exists, mock_update):
+    resp = TEST_CLIENT.put(BROOKLYN_URL, headers=CITY_HEADERS,
+                           json={'name': 'Queens'})
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('server.endpoints.cqry.exists', return_value=None, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_put_city_db_unavailable(mock_allow, mock_exists):
+    resp = TEST_CLIENT.put(BROOKLYN_URL, headers=CITY_HEADERS,
+                           json={'latitude': 41.0})
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('server.endpoints.cqry.update', return_value=None, autospec=True)
+@patch('server.endpoints.cqry.exists', return_value=True, autospec=True)
+@patch('server.endpoints.sec.is_permitted', return_value=True, autospec=True)
+def test_put_city_db_unavailable_during_update(mock_allow, mock_exists,
+                                               mock_update):
+    resp = TEST_CLIENT.put(BROOKLYN_URL, headers=CITY_HEADERS,
+                           json={'latitude': 41.0})
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 FAKE_LISTING = {'listing_id': 'L1', 'title': 'Desk Lamp', 'description': '',
                 'price': 15.5, 'city': 'Brooklyn', 'state_code': 'NY',
                 'seller_id': 'seller1', 'status': 'available'}
