@@ -5,12 +5,19 @@ We may be required to use a new database at any point.
 import os
 from functools import wraps
 
+import certifi
 import pymongo as pm
 
 LOCAL = "0"
 CLOUD = "1"
 
 SE_DB = 'seDB'
+
+# Our team's MongoDB Atlas cluster.
+CLOUD_PROTOCOL = 'mongodb+srv://'
+CLOUD_USER = 'mi2426_db_user'
+CLOUD_URL = 'oasis.90vfzer.mongodb.net/'
+CLOUD_PARAMS = '?retryWrites=true&w=majority&appName=oasis'
 
 client = None
 
@@ -34,9 +41,9 @@ def connect_db():
                 raise ValueError('You must set your password '
                                  + 'to use Mongo in the cloud.')
             print('Connecting to Mongo in the cloud.')
-            client = pm.MongoClient(f'mongodb+srv://gcallah:{password}'
-                                    + '@koukoumongo1.yud9b.mongodb.net/'
-                                    + '?retryWrites=true&w=majority')
+            client = pm.MongoClient(f'{CLOUD_PROTOCOL}{CLOUD_USER}:{password}'
+                                    + f'@{CLOUD_URL}{CLOUD_PARAMS}',
+                                    tlsCAFile=certifi.where())
         else:
             print("Connecting to Mongo locally.")
             client = pm.MongoClient()

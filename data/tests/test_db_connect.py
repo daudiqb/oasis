@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import certifi
+
 import pytest
 
 import data.db_connect as dbc
@@ -49,3 +51,39 @@ def test_db_calls_connect_first(mock_client, mock_connect, fn, args):
 def test_db_call_returns_none_when_db_down(mock_is_db_up, mock_connect):
     assert dbc.read('cities') is None
     mock_connect.assert_not_called()
+
+
+@pytest.fixture
+def no_client(monkeypatch):
+    """
+    Start each connect_db() test with no saved connection.
+    """
+    monkeypatch.setattr(dbc, 'client', None)
+
+
+@patch('data.db_connect.pm.MongoClient', autospec=True)
+def test_connect_db_local(mock_client, no_client, monkeypatch):
+    monkeypatch.setenv('CLOUD_MONGO', dbc.LOCAL)
+    dbc.connect_db()
+    mock_client.assert_called_once_with()
+
+
+@patch('data.db_connect.pm.MongoClient', autospec=True)
+def test_connect_db_cloud(mock_client, no_client, monkeypatch):
+    monkeypatch.setenv('CLOUD_MONGO', dbc.CLOUD)
+    monkeypatch.setenv('MONGO_PASSWD', 'test-password')
+    dbc.connect_db()
+    uri = mock_client.call_args.args[0]
+    assert uri.startswith(dbc.CLOUD_PROTOCOL)
+    assert f'{dbc.CLOUD_USER}:test-password@{dbc.CLOUD_URL}' in uri
+    assert mock_client.call_args.kwargs['tlsCAFile'] == certifi.where()
+
+
+@patch('data.db_connect.pm.MongoClient', autospec=True)
+def test_connect_db_cloud_needs_password(mock_client, no_client,
+                                         monkeypatch):
+    monkeypatch.setenv('CLOUD_MONGO', dbc.CLOUD)
+    monkeypatch.delenv('MONGO_PASSWD', raising=False)
+    with pytest.raises(ValueError):
+        dbc.connect_db()
+    mock_client.assert_not_called()
