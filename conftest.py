@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 import data.db_connect as dbc
+import security.security as sec
 import states.query as sqry
 
 
@@ -13,6 +14,14 @@ def reset_states_cache():
     sqry.clear_cache()
     yield
     sqry.clear_cache()
+
+
+@pytest.fixture(autouse=True)
+def no_security_db(monkeypatch):
+    """
+    Unit tests use the built-in security records, never a live MongoDB.
+    """
+    monkeypatch.setattr(sec, 'read_from_db', lambda: None)
 
 
 @pytest.fixture
