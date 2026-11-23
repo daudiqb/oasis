@@ -21,6 +21,7 @@ all_tests: FORCE
 	cd cities; make tests
 	cd states; make tests
 	cd purchase_requests; make tests
+	cd users; make tests
 	cd listings; make tests
 
 dev_env: FORCE
