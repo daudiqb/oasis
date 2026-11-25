@@ -66,8 +66,14 @@ def create(name: str, state_code: str, latitude: float, longitude: float):
     """
     Add a new city to the database and return it.
     Returns None if the database is down.
+    Raises ValueError for invalid fields or a city that already exists.
     """
     check_valid_city(name, state_code, latitude, longitude)
+    already_there = exists(name, state_code)
+    if already_there is None:
+        return None
+    if already_there:
+        raise ValueError(f'City {name}, {state_code} already exists.')
     city = {
         NAME: name,
         STATE_CODE: state_code,

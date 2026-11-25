@@ -84,7 +84,6 @@ def test_delete_missing_city():
     assert qry.delete('No Such City', 'ZZ') is False
 
 
-@pytest.mark.skip(reason='create() does not reject duplicate cities yet')
 def test_create_duplicate(temp_city):
     with pytest.raises(ValueError):
         qry.create(TEST_CITY[qry.NAME],
@@ -95,6 +94,14 @@ def test_create_duplicate(temp_city):
 
 @patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_create_db_down(mock_is_db_up):
+    assert qry.create(TEST_CITY[qry.NAME],
+                      TEST_CITY[qry.STATE_CODE],
+                      TEST_CITY[qry.LATITUDE],
+                      TEST_CITY[qry.LONGITUDE]) is None
+
+
+@patch('cities.query.dbc.create', return_value=None, autospec=True)
+def test_create_db_down_during_write(mock_create):
     assert qry.create(TEST_CITY[qry.NAME],
                       TEST_CITY[qry.STATE_CODE],
                       TEST_CITY[qry.LATITUDE],
