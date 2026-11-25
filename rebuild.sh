@@ -1,21 +1,18 @@
 #!/bin/bash
-# This runs on PythonAnywhere servers: fetches new code,
-# installs needed packages, and restarts the server.
+# Run on PythonAnywhere, either directly in a Bash console or via deploy.sh.
+set -euo pipefail
 
-touch rebuild
-echo "Rebuilding $PA_DOMAIN"
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+PA_VENV_PATH=${PA_VENV_PATH:-$HOME/.virtualenvs/oasis}
+PA_DOMAIN=${PA_DOMAIN:-${USER:?Set PA_DOMAIN to your web app domain}.pythonanywhere.com}
 
-echo "Pulling code from master"
-git pull origin master
+if [[ ! -x "$PA_VENV_PATH/bin/python" ]]; then
+    printf 'Python virtualenv not found at %s\n' "$PA_VENV_PATH" >&2
+    exit 1
+fi
 
-echo "Activate the virtual env $VENV for user $PA_USER"
-source /home/$PA_USER/.virtualenvs/$VENV/bin/activate
-
-echo "Install packages"
-pip install --upgrade -r requirements.txt
-
-echo "Going to reboot the webserver using $API_TOKEN"
-pa_reload_webapp.py $PA_DOMAIN
-
-touch reboot
-echo "Finished rebuild."
+echo "Rebuilding $PA_DOMAIN from master"
+git pull --ff-only origin master
+"$PA_VENV_PATH/bin/python" -m pip install -r requirements.txt
+pa_reload_webapp.py "$PA_DOMAIN"
+echo "Finished rebuilding $PA_DOMAIN."
