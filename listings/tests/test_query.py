@@ -50,6 +50,8 @@ def fake_db(monkeypatch):
                                for key, val in filt.items())]
         return before - len(store)
 
+    # Every test city exists unless a test says otherwise.
+    monkeypatch.setattr(qry.cqry, 'exists', lambda name, code: True)
     monkeypatch.setattr(qry.dbc, 'read_one', fake_read_one)
     monkeypatch.setattr(qry.dbc, 'delete', fake_delete)
     monkeypatch.setattr(qry.dbc, 'update', fake_update)
@@ -225,6 +227,55 @@ def test_delete_leaves_other_listings(fake_db):
     drop = qry.create('Mini Fridge', 40, 'Jersey City', 'NJ', 'seller2')
     qry.delete(drop[qry.LISTING_ID])
     assert [doc[qry.LISTING_ID] for doc in fake_db] == [keep[qry.LISTING_ID]]
+
+
+def test_create_unknown_city(fake_db, monkeypatch):
+    monkeypatch.setattr(qry.cqry, 'exists', lambda name, code: False)
+    with pytest.raises(ValueError, match='not found'):
+        qry.create(*VALID)
+    assert fake_db == []
+
+
+def test_create_checks_city_and_state(fake_db, monkeypatch):
+    seen = []
+    monkeypatch.setattr(qry.cqry, 'exists',
+                        lambda name, code: seen.append((name, code)) or True)
+    qry.create(*VALID)
+    assert seen == [('Brooklyn', 'NY')]
+
+
+def test_create_city_check_db_down(fake_db, monkeypatch):
+    monkeypatch.setattr(qry.cqry, 'exists', lambda name, code: None)
+    assert qry.create(*VALID) is None
+    assert fake_db == []
+
+
+def test_update_to_unknown_city(fake_db, monkeypatch):
+    listing = qry.create(*VALID)
+    monkeypatch.setattr(qry.cqry, 'exists', lambda name, code: False)
+    with pytest.raises(ValueError, match='not found'):
+        qry.update(listing[qry.LISTING_ID], city='Atlantis')
+    assert qry.read_one(listing[qry.LISTING_ID])[qry.CITY] == 'Brooklyn'
+
+
+def test_update_to_known_city(fake_db):
+    listing = qry.create(*VALID)
+    updated = qry.update(listing[qry.LISTING_ID], city='Jersey City',
+                         state_code='NJ')
+    assert updated[qry.CITY] == 'Jersey City'
+    assert qry.read_one(listing[qry.LISTING_ID])[qry.STATE_CODE] == 'NJ'
+
+
+def test_update_other_fields_skips_city_check(fake_db, monkeypatch):
+    listing = qry.create(*VALID)
+    monkeypatch.setattr(qry.cqry, 'exists', lambda name, code: False)
+    assert qry.update(listing[qry.LISTING_ID], price=5)[qry.PRICE] == 5
+
+
+def test_update_city_check_db_down(fake_db, monkeypatch):
+    listing = qry.create(*VALID)
+    monkeypatch.setattr(qry.cqry, 'exists', lambda name, code: None)
+    assert qry.update(listing[qry.LISTING_ID], state_code='NJ') is None
 
 
 @patch('data.db_connect.is_db_up', return_value=False, autospec=True)

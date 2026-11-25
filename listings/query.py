@@ -4,6 +4,7 @@ through data/db_connect.py.
 """
 import uuid
 
+import cities.query as cqry
 import data.db_connect as dbc
 from data.db_connect import needs_db
 
@@ -49,6 +50,19 @@ def check_valid_listing(title: str, price: float, city: str,
     return True
 
 
+def _check_city_exists(city: str, state_code: str):
+    """
+    Raise ValueError if the city is not in the cities collection.
+    Returns None if the database is down, True otherwise.
+    """
+    found = cqry.exists(city, state_code)
+    if found is None:
+        return None
+    if not found:
+        raise ValueError(f'City {city}, {state_code} not found.')
+    return True
+
+
 def _clean(doc: dict) -> dict:
     """
     Return a copy of a listing without Mongo's internal ID.
@@ -61,9 +75,11 @@ def create(title: str, price: float, city: str, state_code: str,
            seller_id: str, description: str = ''):
     """
     Create a new listing and return it. It starts out available.
-    Raises ValueError if any field is invalid.
+    Raises ValueError if any field is invalid or the city does not exist.
     """
     check_valid_listing(title, price, city, state_code, seller_id)
+    if _check_city_exists(city, state_code) is None:
+        return None
     listing = {
         LISTING_ID: uuid.uuid4().hex,
         TITLE: title,
@@ -139,6 +155,9 @@ def update(listing_id: str, /, **changes):
     if updated[STATUS] not in STATUSES:
         raise ValueError('Status must be one of: '
                          + ', '.join(STATUSES) + '.')
+    if CITY in changes or STATE_CODE in changes:
+        if _check_city_exists(updated[CITY], updated[STATE_CODE]) is None:
+            return None
     if changes:
         dbc.update(COLLECT, {LISTING_ID: listing_id}, dict(changes))
     return updated
