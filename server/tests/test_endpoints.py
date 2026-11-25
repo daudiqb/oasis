@@ -389,6 +389,18 @@ def test_get_listings(mock_read):
     resp = TEST_CLIENT.get(ep.LISTINGS_EP)
     assert resp.status_code == OK
     assert resp.get_json()[ep.LISTINGS_RESP] == [FAKE_LISTING]
+    mock_read.assert_called_once_with(city=None, state_code=None,
+                                      search=None)
+
+
+@patch('server.endpoints.lqry.read', return_value=[FAKE_LISTING],
+       autospec=True)
+def test_get_listings_filtered(mock_read):
+    resp = TEST_CLIENT.get(f'{ep.LISTINGS_EP}?city=Brooklyn&state=NY'
+                           '&search=desk')
+    assert resp.status_code == OK
+    mock_read.assert_called_once_with(city='Brooklyn', state_code='NY',
+                                      search='desk')
 
 
 @patch('server.endpoints.lqry.read', return_value=None, autospec=True)

@@ -80,11 +80,24 @@ def create(title: str, price: float, city: str, state_code: str,
 
 
 @needs_db
-def read():
+def read(city: str = None, state_code: str = None, search: str = None):
     """
-    Return a list of all listings.
+    Return listings, all of them when no filter is given.
+    city and state_code keep exact matches; search keeps listings whose
+    title or description contains it, ignoring case.
     """
-    return dbc.read(COLLECT)
+    listings = dbc.read(COLLECT)
+    if city:
+        listings = [lst for lst in listings if lst.get(CITY) == city]
+    if state_code:
+        listings = [lst for lst in listings
+                    if lst.get(STATE_CODE) == state_code]
+    if search:
+        term = search.strip().lower()
+        listings = [lst for lst in listings
+                    if term in lst.get(TITLE, '').lower()
+                    or term in lst.get(DESCRIPTION, '').lower()]
+    return listings
 
 
 @needs_db

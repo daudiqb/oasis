@@ -41,6 +41,9 @@ LISTINGS_EP = '/listings'
 LISTINGS_RESP = 'Listings'
 LISTING_EP = f'{LISTINGS_EP}/<listing_id>'
 LISTING_RESP = 'Listing'
+LISTING_CITY_ARG = 'city'
+LISTING_STATE_ARG = 'state'
+LISTING_SEARCH_ARG = 'search'
 MESSAGE = 'Message'
 
 STATE_CREATE_FLDS = api.model('CreateState', {
@@ -363,13 +366,20 @@ class Listings(Resource):
     """
     Endpoint for reading all listings and creating a listing.
     """
+    @api.doc(params={
+        LISTING_CITY_ARG: 'Only listings in this city',
+        LISTING_STATE_ARG: 'Only listings in this state code',
+        LISTING_SEARCH_ARG: 'Text to find in the title or description',
+    })
     @api.response(HTTPStatus.OK.value, 'Success')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
-        Return all listings in the database.
+        Return listings, optionally filtered by city, state and search text.
         """
-        listings = lqry.read()
+        listings = lqry.read(city=request.args.get(LISTING_CITY_ARG),
+                             state_code=request.args.get(LISTING_STATE_ARG),
+                             search=request.args.get(LISTING_SEARCH_ARG))
         if listings is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {LISTINGS_RESP: listings}

@@ -87,6 +87,44 @@ def test_read(fake_db):
     assert len(qry.read()) == 2
 
 
+@pytest.fixture
+def three_listings(fake_db):
+    qry.create(*VALID, description='Barely used')
+    qry.create('Mini Fridge', 40, 'Jersey City', 'NJ', 'seller2')
+    qry.create('Standing Desk', 120, 'Manhattan', 'NY', 'seller3')
+    return fake_db
+
+
+def titles(listings):
+    return sorted(lst[qry.TITLE] for lst in listings)
+
+
+def test_read_filter_city(three_listings):
+    assert titles(qry.read(city='Brooklyn')) == ['Desk Lamp']
+
+
+def test_read_filter_state(three_listings):
+    assert titles(qry.read(state_code='NY')) == ['Desk Lamp',
+                                                 'Standing Desk']
+
+
+def test_read_search_ignores_case(three_listings):
+    assert titles(qry.read(search='DESK')) == ['Desk Lamp', 'Standing Desk']
+
+
+def test_read_search_description(three_listings):
+    assert titles(qry.read(search='barely')) == ['Desk Lamp']
+
+
+def test_read_filters_combine(three_listings):
+    assert titles(qry.read(state_code='NY', search='desk',
+                           city='Manhattan')) == ['Standing Desk']
+
+
+def test_read_filter_no_match(three_listings):
+    assert qry.read(state_code='CA') == []
+
+
 def test_exists(fake_db):
     listing = qry.create(*VALID)
     assert qry.exists(listing[qry.LISTING_ID]) is True
