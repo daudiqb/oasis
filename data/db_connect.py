@@ -52,9 +52,13 @@ def connect_db():
 
 def is_db_up():
     """
-    Returns True if the DB is up and running.
+    Ping the DB: return True if it answers, False if it can't be reached.
     """
-    return True
+    try:
+        connect_db().admin.command('ping')
+        return True
+    except pm.errors.PyMongoError:
+        return False
 
 
 def needs_db(fn):
