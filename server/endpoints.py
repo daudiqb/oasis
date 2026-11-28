@@ -21,7 +21,28 @@ import listings.query as lqry
 
 app = Flask(__name__)
 CORS(app)
-api = Api(app)
+api = Api(app, title='Oasis API', version='1.0',
+          description='US states and cities, with a marketplace of '
+                      + 'listings and purchase requests. See docs/api.md.')
+
+# Each namespace becomes a section (tag) in the Swagger docs. The paths are
+# already complete in the *_EP constants, so every namespace is rooted at '/'.
+TAG_SYSTEM = 'System'
+TAG_STATES = 'States'
+TAG_CITIES = 'Cities'
+TAG_LISTINGS = 'Listings'
+TAG_PURCHASE_REQUESTS = 'Purchase requests'
+system_ns = api.namespace(TAG_SYSTEM, path='/',
+                          description='Health check and endpoint list')
+states_ns = api.namespace(TAG_STATES, path='/',
+                          description='US states')
+cities_ns = api.namespace(TAG_CITIES, path='/',
+                          description='Cities, which belong to a state')
+listings_ns = api.namespace(TAG_LISTINGS, path='/',
+                            description='Marketplace listings in a city')
+purchase_requests_ns = api.namespace(
+    TAG_PURCHASE_REQUESTS, path='/',
+    description='Requests to buy a listing')
 
 ENDPOINT_EP = '/endpoints'
 ENDPOINT_RESP = 'Available endpoints'
@@ -47,23 +68,24 @@ LISTING_SEARCH_ARG = 'search'
 MESSAGE = 'Message'
 
 STATE_CREATE_FLDS = api.model('CreateState', {
-    'state_code': fields.String(required=True),
-    'name': fields.String(required=True),
-    'population': fields.Integer(),
-    'capital': fields.String(),
-    'area_sq_miles': fields.Float(),
+    'state_code': fields.String(
+        required=True, description='Two-letter state code, e.g. NY'),
+    'name': fields.String(required=True, description='State name'),
+    'population': fields.Integer(description='Population (default 0)'),
+    'capital': fields.String(description='Capital city (default empty)'),
+    'area_sq_miles': fields.Float(description='Area in square miles'),
 })
 
 
 STATE_UPDATE_FLDS = api.model('UpdateState', {
-    'name': fields.String(),
-    'population': fields.Integer(),
-    'capital': fields.String(),
-    'area_sq_miles': fields.Float(),
+    'name': fields.String(description='New state name'),
+    'population': fields.Integer(description='New population'),
+    'capital': fields.String(description='New capital city'),
+    'area_sq_miles': fields.Float(description='New area in square miles'),
 })
 
 
-@api.route(HELLO_EP)
+@system_ns.route(HELLO_EP)
 class HelloWorld(Resource):
     """
     The purpose of the HelloWorld class is to have a simple test to see if the
@@ -76,7 +98,7 @@ class HelloWorld(Resource):
         return {HELLO_RESP: 'world'}
 
 
-@api.route(ENDPOINT_EP)
+@system_ns.route(ENDPOINT_EP)
 class Endpoints(Resource):
     """
     This class will serve as live, fetchable documentation of what endpoints
@@ -84,13 +106,13 @@ class Endpoints(Resource):
     """
     def get(self):
         """
-        The `get()` method will return a sorted list of available endpoints.
+        Return a sorted list of the available endpoint paths.
         """
         endpoints = sorted(rule.rule for rule in api.app.url_map.iter_rules())
         return {"Available endpoints": endpoints}
 
 
-@api.route(STATES_EP)
+@states_ns.route(STATES_EP)
 class States(Resource):
     """
     The get method will return a list of all states in the database.
@@ -99,7 +121,7 @@ class States(Resource):
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
-        The get method will return a list of all states in the database.
+        Return a list of all states in the database.
         """
         states = sqry.read()
         if states is None:
@@ -135,7 +157,7 @@ class States(Resource):
                 HTTPStatus.CREATED)
 
 
-@api.route(STATE_FIELDS_EP)
+@states_ns.route(STATE_FIELDS_EP)
 class StateFields(Resource):
     """Describe the public fields of a state record."""
 
@@ -145,7 +167,7 @@ class StateFields(Resource):
         return {STATE_FIELDS_RESP: sflds.get_flds()}
 
 
-@api.route(STATE_EP)
+@states_ns.route(STATE_EP)
 class State(Resource):
     """Read, update, or delete a single state by its code."""
 
@@ -219,20 +241,21 @@ class State(Resource):
 
 
 CITY_CREATE_FLDS = api.model('CreateCity', {
-    cqry.NAME: fields.String(required=True),
-    cqry.STATE_CODE: fields.String(required=True),
-    cqry.LATITUDE: fields.Float(required=True),
-    cqry.LONGITUDE: fields.Float(required=True),
+    cqry.NAME: fields.String(required=True, description='City name'),
+    cqry.STATE_CODE: fields.String(
+        required=True, description='Code of an existing state'),
+    cqry.LATITUDE: fields.Float(required=True, description='Latitude'),
+    cqry.LONGITUDE: fields.Float(required=True, description='Longitude'),
 })
 
 
 CITY_UPDATE_FLDS = api.model('UpdateCity', {
-    cqry.LATITUDE: fields.Float(),
-    cqry.LONGITUDE: fields.Float(),
+    cqry.LATITUDE: fields.Float(description='New latitude'),
+    cqry.LONGITUDE: fields.Float(description='New longitude'),
 })
 
 
-@api.route(CITIES_EP)
+@cities_ns.route(CITIES_EP)
 class Cities(Resource):
     """
     Endpoint for reading all cities and creating a city.
@@ -277,7 +300,7 @@ class Cities(Resource):
                 HTTPStatus.CREATED)
 
 
-@api.route(CITY_EP)
+@cities_ns.route(CITY_EP)
 class City(Resource):
     """
     Read, update or delete a single city by its state code and name.
@@ -352,16 +375,19 @@ class City(Resource):
 
 
 LISTING_CREATE_FLDS = api.model('CreateListing', {
-    lqry.TITLE: fields.String(required=True),
-    lqry.PRICE: fields.Float(required=True),
-    lqry.CITY: fields.String(required=True),
-    lqry.STATE_CODE: fields.String(required=True),
-    lqry.SELLER_ID: fields.String(required=True),
-    lqry.DESCRIPTION: fields.String(),
+    lqry.TITLE: fields.String(required=True, description='Listing title'),
+    lqry.PRICE: fields.Float(required=True, description='Asking price'),
+    lqry.CITY: fields.String(
+        required=True, description='Name of an existing city'),
+    lqry.STATE_CODE: fields.String(
+        required=True, description='State code of that city'),
+    lqry.SELLER_ID: fields.String(
+        required=True, description='ID of the seller'),
+    lqry.DESCRIPTION: fields.String(description='Longer description'),
 })
 
 
-@api.route(LISTINGS_EP)
+@listings_ns.route(LISTINGS_EP)
 class Listings(Resource):
     """
     Endpoint for reading all listings and creating a listing.
@@ -420,16 +446,17 @@ class Listings(Resource):
 
 
 LISTING_UPDATE_FLDS = api.model('UpdateListing', {
-    lqry.TITLE: fields.String(),
-    lqry.DESCRIPTION: fields.String(),
-    lqry.PRICE: fields.Float(),
-    lqry.CITY: fields.String(),
-    lqry.STATE_CODE: fields.String(),
-    lqry.STATUS: fields.String(),
+    lqry.TITLE: fields.String(description='New title'),
+    lqry.DESCRIPTION: fields.String(description='New description'),
+    lqry.PRICE: fields.Float(description='New asking price'),
+    lqry.CITY: fields.String(description='New city name'),
+    lqry.STATE_CODE: fields.String(description='New state code'),
+    lqry.STATUS: fields.String(enum=list(lqry.STATUSES),
+                               description='New listing status'),
 })
 
 
-@api.route(LISTING_EP)
+@listings_ns.route(LISTING_EP)
 class Listing(Resource):
     """
     Read a single listing by its ID.
@@ -509,18 +536,23 @@ PURCHASE_REQUESTS_RESP = 'Purchase requests'
 PURCHASE_REQUEST_RESP = 'Purchase request'
 
 PURCHASE_REQUEST_CREATE_FLDS = api.model('CreatePurchaseRequest', {
-    prqry.LISTING_ID: fields.String(required=True),
-    prqry.BUYER_ID: fields.String(required=True),
-    prqry.SELLER_ID: fields.String(required=True),
-    prqry.MESSAGE: fields.String(),
+    prqry.LISTING_ID: fields.String(
+        required=True, description='ID of the listing to buy'),
+    prqry.BUYER_ID: fields.String(
+        required=True, description='ID of the buyer'),
+    prqry.SELLER_ID: fields.String(
+        required=True, description='ID of the seller (not the buyer)'),
+    prqry.MESSAGE: fields.String(description='Optional note to the seller'),
 })
 
 PURCHASE_REQUEST_UPDATE_FLDS = api.model('UpdatePurchaseRequest', {
-    prqry.STATUS: fields.String(required=True),
+    prqry.STATUS: fields.String(
+        required=True, enum=list(prqry.NEW_STATUSES),
+        description='New status for a pending request'),
 })
 
 
-@api.route(PURCHASE_REQUESTS_EP)
+@purchase_requests_ns.route(PURCHASE_REQUESTS_EP)
 class PurchaseRequests(Resource):
     """
     Send purchase requests, and view them.
@@ -575,7 +607,7 @@ class PurchaseRequests(Resource):
                 PURCHASE_REQUEST_RESP: new_request}, HTTPStatus.CREATED
 
 
-@api.route(PURCHASE_REQUEST_EP)
+@purchase_requests_ns.route(PURCHASE_REQUEST_EP)
 class PurchaseRequest(Resource):
     """
     Operations on a single purchase request.
